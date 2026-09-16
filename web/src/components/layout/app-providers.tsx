@@ -9,6 +9,8 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 
 import { ClientRootInit } from "@/components/layout/client-root-init";
+import { DesktopShellFrame } from "@/components/layout/desktop-title-bar";
+import { useDesktopWindowThemeSync } from "@/hooks/use-desktop-window-theme-sync";
 import { getAntThemeConfig } from "@/lib/app-theme";
 import { useThemeStore } from "@/stores/use-theme-store";
 
@@ -28,6 +30,7 @@ dayjs.locale("zh-cn");
 export function AppProviders({ children }: { children: ReactNode }) {
     const theme = useThemeStore((state) => state.theme);
     const dark = theme === "dark";
+    useDesktopWindowThemeSync();
 
     useEffect(() => {
         const reloadOnceForChunkError = (reason: unknown) => {
@@ -59,7 +62,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <ConfigProvider locale={zhCN} theme={getAntThemeConfig(dark)}>
             <App message={{ top: 84, duration: 2.4, maxCount: 3 }}>
                 <QueryClientProvider client={queryClient}>
-                    <ClientRootInit>{children}</ClientRootInit>
+                    <ClientRootInit>
+                        <DesktopShellFrame>{children}</DesktopShellFrame>
+                    </ClientRootInit>
                 </QueryClientProvider>
             </App>
         </ConfigProvider>

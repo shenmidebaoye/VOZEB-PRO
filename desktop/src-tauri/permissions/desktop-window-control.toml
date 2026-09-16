@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-desktop-window-control"
+description = "Allows the frontend to control the desktop window chrome actions."
+commands.allow = ["desktop_window_control"]

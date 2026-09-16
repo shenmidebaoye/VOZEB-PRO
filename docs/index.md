@@ -9,6 +9,7 @@ VOZEB PRO 是面向图片、视频、短剧与品牌物料生产的本机 AI 创
 - [页面功能图册](/docs/overview/page-gallery)
 - [快速开始](/docs/overview/quick-start)
 - [配置说明](/docs/overview/configuration)
+- [桌面应用（Tauri）](../desktop/README.md)
 - [生产上线基线](/docs/overview/production-readiness)
 
 ## 创作与画布

@@ -1,0 +1,17 @@
+{
+  "name": "vozeb-pro-desktop",
+  "version": "0.0.7",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "prepare:splash": "node scripts/prepare-splash.mjs",
+    "prepare:desktop": "node scripts/prepare-desktop.mjs",
+    "ensure:standalone": "node ../web/scripts/ensure-desktop-standalone.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.5"
+  }
+}

@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VOZEB PRO</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fafbfc;
+        --fg: #20242a;
+        --muted: #697381;
+        --accent: #171717;
+        --chrome: #fafbfc;
+        --chrome-border: #e5e8ec;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111316;
+          --fg: #f3f5f7;
+          --muted: #9aa3af;
+          --accent: #fafafa;
+          --chrome: #111316;
+          --chrome-border: #2b3037;
+        }
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      #vozeb-desktop-titlebar {
+        display: flex;
+        align-items: center;
+        height: 36px;
+        flex-shrink: 0;
+        border-bottom: 1px solid var(--chrome-border);
+        background: var(--chrome);
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #vozeb-desktop-titlebar .title {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+      }
+      #vozeb-desktop-titlebar .actions {
+        display: flex;
+        height: 100%;
+      }
+      #vozeb-desktop-titlebar button {
+        width: 44px;
+        height: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: default;
+        font: 16px/1 sans-serif;
+      }
+      #vozeb-desktop-titlebar button:hover {
+        background: color-mix(in srgb, var(--fg) 10%, transparent);
+      }
+      #vozeb-desktop-titlebar button.close:hover {
+        background: #c42b1c;
+        color: #fff;
+      }
+      .stage {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(1200px 600px at 20% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+          radial-gradient(900px 500px at 100% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%),
+          var(--bg);
+      }
+      .card {
+        width: min(420px, calc(100vw - 48px));
+        text-align: center;
+      }
+      img {
+        width: 72px;
+        height: 72px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .bar {
+        margin: 28px auto 0;
+        width: 160px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--muted) 25%, transparent);
+      }
+      .bar > span {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--accent);
+        animation: slide 1.2s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(320%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header id="vozeb-desktop-titlebar">
+      <div class="title" data-tauri-drag-region>VOZEB PRO</div>
+      <div class="actions" data-desktop-no-drag>
+        <button type="button" data-action="minimize" aria-label="最小化" title="最小化">─</button>
+        <button type="button" data-action="maximize" data-desktop-maximize aria-label="最大化" title="最大化"></button>
+        <button type="button" class="close" data-action="close" aria-label="关闭" title="关闭">×</button>
+      </div>
+    </header>
+    <main class="stage">
+      <div class="card">
+        <img src="./logo.svg" alt="VOZEB PRO" />
+        <h1>VOZEB PRO</h1>
+        <p>正在启动本机创作服务…</p>
+        <div class="bar" aria-hidden="true"><span></span></div>
+      </div>
+    </main>
+    <script>
+      (function () {
+        window.__VOZEB_DESKTOP__ = true;
+        function tauriWindow() {
+          try {
+            return window.__TAURI__ && window.__TAURI__.window && window.__TAURI__.window.getCurrentWindow
+              ? window.__TAURI__.window.getCurrentWindow()
+              : null;
+          } catch (_) {
+            return null;
+          }
+        }
+        function invoke(action) {
+          try {
+            if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+              return window.__TAURI__.core.invoke("desktop_window_control", { action: action });
+            }
+          } catch (_) {}
+          return Promise.resolve({});
+        }
+        function setMaximized(maximized) {
+          try {
+            window.dispatchEvent(new CustomEvent("vozeb-desktop-maximized", { detail: { maximized: !!maximized } }));
+          } catch (_) {}
+          var button = document.querySelector("[data-desktop-maximize]");
+          if (!button) return;
+          button.setAttribute("data-maximized", maximized ? "1" : "0");
+          button.setAttribute("aria-label", maximized ? "向下还原" : "最大化");
+          button.title = maximized ? "向下还原" : "最大化";
+          button.innerHTML = maximized
+            ? '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3.5 4.5h5v5h-5zM4.5 2.5h5A1 1 0 0 1 10.5 3.5v5" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/></svg>'
+            : '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><rect x="2.25" y="2.25" width="7.5" height="7.5" rx="0.5" fill="none" stroke="currentColor" stroke-width="1.25"/></svg>';
+        }
+        function drag() {
+          var current = tauriWindow();
+          if (current && current.startDragging) {
+            try {
+              current.startDragging();
+              return;
+            } catch (_) {}
+          }
+          invoke("drag");
+        }
+        function call(action) {
+          var current = tauriWindow();
+          if (current) {
+            if (action === "minimize" && current.minimize) return current.minimize();
+            if (action === "maximize" && current.toggleMaximize) {
+              return current.toggleMaximize().then(function () {
+                return current.isMaximized().then(function (maximized) {
+                  setMaximized(!!maximized);
+                  return { maximized: !!maximized };
+                });
+              });
+            }
+            if (action === "close" && current.close) return current.close();
+          }
+          return invoke(action).then(function (result) {
+            if (result && typeof result.maximized === "boolean") setMaximized(result.maximized);
+            return result || {};
+          });
+        }
+        setMaximized(false);
+        var current = tauriWindow();
+        if (current && current.isMaximized) {
+          current.isMaximized().then(function (maximized) {
+            setMaximized(!!maximized);
+          });
+        }
+        window.addEventListener("vozeb-desktop-maximized", function (event) {
+          if (event.detail && typeof event.detail.maximized === "boolean") setMaximized(event.detail.maximized);
+        });
+        var title = document.querySelector("#vozeb-desktop-titlebar .title");
+        title.addEventListener("mousedown", function (event) {
+          if (event.button !== 0) return;
+          drag();
+        });
+        title.addEventListener("dblclick", function () {
+          call("maximize");
+        });
+        document.querySelectorAll("#vozeb-desktop-titlebar button[data-action]").forEach(function (button) {
+          button.addEventListener("mousedown", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+          });
+          button.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            call(button.getAttribute("data-action"));
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

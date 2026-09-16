@@ -6,6 +6,11 @@
     "scripts": {
         "start": "pnpm --dir web start:local",
         "dev": "pnpm --dir web start:local",
+        "desktop:dev": "pnpm --dir desktop tauri:dev",
+        "desktop:dev:hmr": "node desktop/scripts/run-tauri-dev-hmr.mjs",
+        "desktop:build": "pnpm --dir desktop tauri:build",
+        "desktop:sidecar": "pnpm --dir web exec node scripts/start-desktop.mjs",
+        "desktop:rebuild": "pnpm --dir web exec node scripts/ensure-desktop-standalone.mjs --force",
         "licenses:generate": "node scripts/generate-third-party-licenses.mjs",
         "licenses:check": "node scripts/generate-third-party-licenses.mjs --check"
     }

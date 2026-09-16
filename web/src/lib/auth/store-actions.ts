@@ -1,5 +1,5 @@
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled } from "@/lib/server/database";
-import { type UserRole, type UserStatus, type PublicUser, type PublicUserSummary } from "./store-types";
+import { type PublicUser, type PublicUserSummary } from "./store-types";
 import { readAuthDb } from "./store-repository";
 import { normalizeText } from "./store-normalizers";
 import { matchesPublicUser, summarizePublicUsers, toPublicUser } from "./store-user-projection";
@@ -7,46 +7,6 @@ import { matchesPublicUser, summarizePublicUsers, toPublicUser } from "./store-u
 export { toPublicUser };
 
 export { getAuthSettings, getFreshAuthSettings, setAuthSettings } from "./store-settings-actions";
-
-export type PublicUserListResult = {
-    users: PublicUser[];
-    total: number;
-    page: number;
-    pageSize: number;
-    summary: PublicUserSummary;
-};
-
-export async function listPublicUsersPage(input?: { page?: number; pageSize?: number; keyword?: string; role?: UserRole; status?: UserStatus }): Promise<PublicUserListResult> {
-    const page = Math.max(1, Math.floor(Number(input?.page) || 1));
-    const pageSize = Math.max(1, Math.min(100, Math.floor(Number(input?.pageSize) || 20)));
-    const keyword = normalizeText(input?.keyword, "", 120).toLowerCase();
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        const repos = createPostgresRepositories();
-        const [result, summary] = await Promise.all([repos.users.list({ page, pageSize, keyword, status: input?.status }), repos.users.summarize()]);
-        return {
-            users: result.items.map((user) => toPublicUser(user)),
-            total: result.total,
-            page: result.page,
-            pageSize: result.pageSize,
-            summary,
-        };
-    }
-    const db = await readAuthDb();
-    const filtered = db.users
-        .filter((user) => matchesPublicUser(user, { keyword, role: input?.role, status: input?.status }))
-        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-        .map((user) => toPublicUser(user));
-    const total = filtered.length;
-    const safePage = Math.min(page, Math.max(1, Math.ceil(total / pageSize)));
-    return {
-        users: filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
-        total,
-        page: safePage,
-        pageSize,
-        summary: summarizePublicUsers(db.users),
-    };
-}
 
 export async function getPublicUserSummary(): Promise<PublicUserSummary> {
     if (isPostgresDatabaseEnabled()) {

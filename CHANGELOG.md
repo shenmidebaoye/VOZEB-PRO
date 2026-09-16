@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- [瘦身] 删除无 UI 的运营 API 与孤儿模块：生成总览/运维/日志/审计路由、头像与资料接口、wallet/points stub、多用户列表导出等；条款/隐私/帮助改为本机工作室表述。
+- [桌面] 新增 Tauri 壳与本机 sidecar：`pnpm desktop:dev` 启动窗口后拉起 `start-desktop.mjs`，就绪后进入 `/create`；数据目录与加密/Worker 令牌写入系统 AppData。
+- [桌面] 默认改用 Next standalone 预构建冷启动，避免 `next dev` 按路由现编；`desktop:rebuild` 重建，`desktop:dev:hmr` 仅在需要热更新时使用。
+- [桌面] 修复启动卡在 splash：服务就绪后立即发出 `studio.ready`（不再等待 `/create` 预热），并用 ready 文件作为导航兜底。
+- [桌面] 系统标题栏与窗口底色跟随应用浅色/深色主题同步。
+- [桌面] 关闭系统装饰，改为应用内自定义顶栏：主题色背景、拖动与最小化/最大化/关闭。
 - [产品] 收敛为本机创作工具：去掉登录/注册、管理后台与商业运营入口；配置迁到 `/settings`，首页直接进入 `/create`。
 - [身份] 本机用户只暴露 id、用户名、显示名、简介、头像和状态；去掉 Session Cookie 与积分扣费函数。
 - [设置] `/settings` 改为本机工作室配置面：保留渠道、Skills、站点、生成并发/默认参数、本地媒体、外部存储、备份与更新；去掉用户/CDK/公告、邮箱 SMTP、注册与积分成本保护。

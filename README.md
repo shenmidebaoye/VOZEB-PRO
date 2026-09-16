@@ -411,6 +411,19 @@ pnpm start          # 仓库根目录
 
 浏览器打开 `http://127.0.0.1:3000`，进入 `/create` 创作，在 `/settings` 配置渠道、Skills、站点、存储与备份。
 
+### 桌面应用（Tauri）
+
+需要本机已安装 Rust（`cargo`）与 WebView2。**默认使用预构建 standalone**（首次自动 build，之后冷启动快）；不要用 `next dev` 按路由现编。
+
+```bash
+pnpm --dir desktop install
+pnpm desktop:dev          # 推荐：standalone 快启动
+pnpm desktop:rebuild      # 代码变更后重建产物
+pnpm desktop:dev:hmr      # 仅调试 UI 时用，较慢
+```
+
+说明见 [desktop/README.md](desktop/README.md)。正式安装包还需后续捆绑 Node 与 standalone 产物。
+
 ### 源码开发
 
 环境要求：Node.js 22、pnpm 10+；短剧合成和本地转码还需要 FFmpeg。
@@ -443,6 +456,7 @@ pnpm run dev
 
 | 路径                                        | 文件里是什么                                                               |
 | ------------------------------------------- | -------------------------------------------------------------------------- |
+| `desktop/`                                      | Tauri 桌面壳：启动 splash、拉起本机 Next sidecar、打包入口                 |
 | `web/src/app/`                              | Next.js 页面、布局、安装页、用户工作区、管理后台和本站 API Route Handler   |
 | `web/src/lib/server/`                       | Agent 编排、模型路由、生成任务、计费、媒体、对象存储、支付和服务端安全逻辑 |
 | `web/src/lib/server/database/`              | PostgreSQL 表结构、参数化 Repository、查询映射和文件 Provider 回退         |

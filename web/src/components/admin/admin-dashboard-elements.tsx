@@ -1,23 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { formatAccountId, parseAccountId } from "@/lib/account-id";
 import { createDefaultChannelAdvancedConfig } from "@/components/admin/admin-system-channel-editor";
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
 import type { SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
 import { nanoid } from "nanoid";
 import { urlHostMatches, urlPathStartsWith } from "@/lib/url-host";
-
-export function AdminAccountId({ accountId, className = "" }: { accountId?: string; className?: string }) {
-    const displayAccountId = parseAccountId(accountId) ? formatAccountId(accountId) : undefined;
-    if (!displayAccountId) return null;
-    return (
-        <span className={`inline-flex min-w-0 items-baseline whitespace-nowrap text-xs leading-5 ${className}`} title={`ID：${displayAccountId}`} aria-label={`账号 ID ${displayAccountId}`}>
-            <span className="shrink-0 text-zinc-400 dark:text-zinc-500">ID：</span>
-            <span className="font-mono font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">{displayAccountId}</span>
-        </span>
-    );
-}
 
 export const settingsStatusToneClass = {
     cyan: "bg-cyan-50 text-cyan-700 ring-cyan-100 dark:bg-cyan-950/45 dark:text-cyan-200 dark:ring-cyan-900/40",

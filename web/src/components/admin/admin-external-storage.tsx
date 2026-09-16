@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminMediaTypeTabs } from "@/components/admin/admin-media-type-tabs";
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
-import { AdminAccountId } from "@/components/admin/admin-dashboard-elements";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { managedMediaTypeLabel, mediaSourceGroupOptions, mediaSourceLabel } from "@/lib/media-management-contract";
 import type { ExternalStorageFile, ExternalStorageFilesPayload, ObjectStorageMigrationResult, ObjectStorageSettings, ObjectStorageSettingsUpdate } from "@/lib/object-storage-contract";
@@ -201,14 +200,11 @@ export function AdminExternalStorage() {
                 ),
             },
             {
-                title: "用户 / 来源",
+                title: "来源",
                 width: 180,
                 render: (_, file) => (
                     <div className="text-xs text-zinc-500">
-                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                            <span className="truncate text-zinc-800 dark:text-zinc-200">{file.ownerDisplayName || file.ownerUsername || (file.ownerUserId ? "用户信息不可用" : "未登记")}</span>
-                            <AdminAccountId accountId={file.ownerAccountId} className="shrink-0" />
-                        </div>
+                        <div className="truncate text-zinc-800 dark:text-zinc-200">{file.ownerDisplayName || file.ownerUsername || "本机"}</div>
                         <div className="mt-1 truncate">{mediaSourceLabel(file.source)}</div>
                     </div>
                 ),
@@ -456,8 +452,7 @@ export function AdminExternalStorage() {
                                         {managedMediaTypeLabel(file.type)} · {formatBytes(file.bytes)} · {file.storageKey ? `引用 ${file.referenceCount}` : file.variant ? "预览变体" : "独立对象"}
                                     </div>
                                     <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500">
-                                        <span className="truncate">{file.ownerDisplayName || file.ownerUsername || (file.ownerUserId ? "用户信息不可用" : "未登记")}</span>
-                                        <AdminAccountId accountId={file.ownerAccountId} className="shrink-0" />
+                                        <span className="truncate">{file.ownerDisplayName || file.ownerUsername || "本机"}</span>
                                         <span className="truncate">{mediaSourceLabel(file.source)}</span>
                                     </div>
                                     <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{file.key}</div>

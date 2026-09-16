@@ -8,7 +8,7 @@ export function proxy(request: NextRequest) {
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("content-security-policy", contentSecurityPolicy);
 
-    if (!request.nextUrl.pathname.startsWith("/api/") || request.nextUrl.pathname.startsWith("/api/billing/webhooks/") || ["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+    if (!request.nextUrl.pathname.startsWith("/api/") || ["GET", "HEAD", "OPTIONS"].includes(request.method)) {
         return securedNextResponse(requestHeaders, contentSecurityPolicy);
     }
 

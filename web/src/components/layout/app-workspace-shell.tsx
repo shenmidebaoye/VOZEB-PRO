@@ -15,9 +15,8 @@ import { DEFAULT_SITE_TITLE, resolveSiteTitle } from "@/lib/site-brand";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
 
 const PAGE_TITLES: Record<string, string> = {
-    billing: "充值中心",
     help: "帮助中心",
-    profile: "个人中心",
+    settings: "设置",
 };
 
 export function AppWorkspaceShell({ children }: { children: ReactNode }) {

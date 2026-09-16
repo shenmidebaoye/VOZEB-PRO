@@ -9,6 +9,7 @@ description: 当前项目后续值得处理的事项
 
 本机工作室瘦身已去掉登录、后台与商业运营产品面；下列历史商业上线/支付/邀请/合规待办默认不再作为本机工具验收范围，除非重新引入多租户 SaaS。
 
+- 桌面应用（Tauri）：已落地壳 + Next sidecar；**默认 standalone 快启动**（`pnpm desktop:dev`），自定义顶栏（无系统装饰）；`desktop:rebuild` 重建，`desktop:dev:hmr` 仅调试 UI。下一步把 Node 运行时与 standalone 打进安装包并验收 Sharp。
 - 本机身份/设置：AuthSettings、商业 stub、会话清理开关与 `repository-types` 商业类型目录已去掉；`hasAdminPermission` 仅校验本机 owner 可用。Docker / Compose / Render / 宝塔镜像部署已移除。下一步可再把 `/api/admin` 路径别名为 `/api/settings`，并继续清理文档里的 SaaS 验收条目。
 - 本机存储：`pnpm start` 默认 file Provider；PostgreSQL 只作可选本机/远程库，不要把容器编排当成验收必需项。
 - 短剧生产线后续：剧本工作台已完成最终四栏生产布局与独立 `.next-drama-final` 构建；下一步在生产等价登录态完成 1672×941/1440px/390px/430px 至少三轮截图对比，使用真实文本、图片、视频与音频渠道验收两阶段剧本分析、三种视频模式、镜头转码、配音混合、中文字幕烧录、剪映 5.x/6+ 草稿导入、任务取消和成片下载，并继续补充整集成片历史、长期成本归档和媒体访问压力测试。

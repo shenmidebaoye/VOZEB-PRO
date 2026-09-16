@@ -12,6 +12,9 @@ description: VOZEB PRO 目录职责、服务边界、核心请求链路和部署
 ```text
 VOZEB-PRO/
 |- .github/workflows/       质量检查工作流
+|- desktop/                 Tauri 桌面壳（启动 splash + 拉起本机 sidecar）
+|  |- splash/               启动等待页
+|  `- src-tauri/            Rust 壳、图标与打包配置
 |- docs/                    Fumadocs 文档站
 |  |- content/docs/         产品、后端与进度文档
 |  |- public/community/     QQ 群等项目社区素材
@@ -19,7 +22,7 @@ VOZEB-PRO/
 |  `- src/                  文档站页面、搜索和导航
 |- web/                     VOZEB PRO 主应用
 |  |- public/               Logo、图标等静态资源
-|  |- scripts/              本机启动与运维脚本
+|  |- scripts/              本机启动与运维脚本（含 start-desktop.mjs）
 |  `- src/
 |     |- app/               页面、布局和 API Route Handler
 |     |- components/        跨页面组件与设置界面

@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminMediaTypeTabs } from "@/components/admin/admin-media-type-tabs";
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
-import { AdminAccountId } from "@/components/admin/admin-dashboard-elements";
 import type { LocalMediaAsset, LocalMediaStoragePayload } from "@/lib/local-media-storage-contract";
 import { managedMediaTypeLabel, mediaSourceGroupOptions, mediaSourceLabel } from "@/lib/media-management-contract";
 import { imagePreviewUrl, originalMediaDownloadUrl } from "@/lib/media-image-url";
@@ -115,12 +114,9 @@ export function AdminLocalMediaStorage() {
                 title: "归属与来源",
                 width: 220,
                 render: (_, asset) => (
-                    <div className="min-w-0 text-xs text-zinc-500">
-                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                            <span className="truncate text-zinc-800 dark:text-zinc-200">{asset.ownerDisplayName || asset.ownerUsername || (asset.ownerUserId ? "用户信息不可用" : "未登记用户")}</span>
-                            <AdminAccountId accountId={asset.ownerAccountId} className="shrink-0" />
-                        </div>
-                        <div className="mt-1 truncate">{mediaSourceLabel(asset.source)}</div>
+                        <div className="min-w-0 text-xs text-zinc-500">
+                            <div className="truncate text-zinc-800 dark:text-zinc-200">{asset.ownerDisplayName || asset.ownerUsername || "本机"}</div>
+                            <div className="mt-1 truncate">{mediaSourceLabel(asset.source)}</div>
                         {asset.projectId || asset.conversationId || asset.taskId ? (
                             <div className="mt-1 truncate font-mono" title={asset.projectId || asset.conversationId || asset.taskId}>
                                 {asset.projectId || asset.conversationId || asset.taskId}
@@ -281,8 +277,7 @@ export function AdminLocalMediaStorage() {
                                     {asset.storageClass === "permanent" ? "长期" : "临时"} · {managedMediaTypeLabel(asset.type)} · {formatBytes(asset.bytes)}
                                 </div>
                                 <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500">
-                                    <span className="truncate">{asset.ownerDisplayName || asset.ownerUsername || (asset.ownerUserId ? "用户信息不可用" : "未登记用户")}</span>
-                                    <AdminAccountId accountId={asset.ownerAccountId} className="shrink-0" />
+                                    <span className="truncate">{asset.ownerDisplayName || asset.ownerUsername || "本机"}</span>
                                     <span className="truncate">{mediaSourceLabel(asset.source)}</span>
                                 </div>
                                 <div className="mt-1 truncate font-mono text-[11px] text-zinc-500">{asset.directory}</div>

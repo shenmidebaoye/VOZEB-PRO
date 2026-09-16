@@ -7,8 +7,6 @@ export const navigationGroups = [
     { id: "system", label: "系统" },
 ] as const;
 
-export const landingNavigationTools = [{ slug: "create", label: "Agent" }] as const;
-
 export const navigationTools = [
     {
         slug: "create",
