@@ -38,7 +38,7 @@ describe("Docker Compose contracts", () => {
         const profile = composeProfiles.find(({ file }) => file === "docker-compose.external-db.yml");
         const source = readFileSync(path.join(repoRoot, profile.file), "utf8").replace('    command: ["node", "/app/web/scripts/generation-worker.mjs"]', '    command: ["node", "/app/web/scripts/generation-worker.mjs"]\n    env_file:\n      - .env');
 
-        expect(() => validateComposeContract(source, profile)).toThrow("generation-worker 不得读取包含安装令牌和业务密钥的 .env");
+        expect(() => validateComposeContract(source, profile)).toThrow("generation-worker 不得读取包含数据库、支付和业务密钥的完整 .env");
     });
 
     it("rejects exposing the external maintenance token to the Worker", () => {

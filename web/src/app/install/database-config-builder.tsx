@@ -15,13 +15,12 @@ export function DatabaseConfigBuilder() {
     const [password, setPassword] = useState("");
     const [ssl, setSsl] = useState(false);
     const [encryptionKey, setEncryptionKey] = useState("");
-    const [installToken, setInstallToken] = useState("");
     const [maintenanceToken, setMaintenanceToken] = useState("");
     const [workerToken, setWorkerToken] = useState("");
     const [copiedKey, setCopiedKey] = useState("");
     const [activeSnippet, setActiveSnippet] = useState<SnippetKey>("env");
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const configurationReady = Boolean(password && encryptionKey && installToken && maintenanceToken && workerToken);
+    const configurationReady = Boolean(password && encryptionKey && maintenanceToken && workerToken);
     const snippets = useMemo(
         () =>
             buildDeploymentSnippets({
@@ -33,11 +32,10 @@ export function DatabaseConfigBuilder() {
                 password,
                 ssl,
                 encryptionKey,
-                installToken,
                 maintenanceToken,
                 workerToken,
             }),
-        [database, encryptionKey, host, installToken, maintenanceToken, mode, password, port, ssl, username, workerToken],
+        [database, encryptionKey, host, maintenanceToken, mode, password, port, ssl, username, workerToken],
     );
     const snippetOptions: SnippetOption[] = [
         { key: "env", label: "环境变量", title: mode === "local" ? "web/.env.local" : "项目根目录 .env", description: "数据库、加密密钥与分离的维护/Worker 令牌", icon: FileCode2, text: snippets.envText },
@@ -50,7 +48,6 @@ export function DatabaseConfigBuilder() {
 
     useEffect(() => {
         setEncryptionKey(generateDeploymentSecret());
-        setInstallToken(generateDeploymentSecret());
         setMaintenanceToken(generateDeploymentSecret());
         setWorkerToken(generateDeploymentSecret());
         return () => {
@@ -136,21 +133,6 @@ export function DatabaseConfigBuilder() {
                         </span>
                     </label>
                     <label className="block space-y-1.5 sm:col-span-2">
-                        <span className="text-xs font-medium text-slate-500">Install Token</span>
-                        <span className="flex gap-2">
-                            <input className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 font-mono text-xs text-slate-700 outline-none" value={installToken} readOnly aria-label="一次性安装令牌" />
-                            <button
-                                type="button"
-                                onClick={() => setInstallToken(generateDeploymentSecret())}
-                                className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
-                                title="重新生成安装令牌"
-                                aria-label="重新生成安装令牌"
-                            >
-                                <RefreshCw className="size-4" />
-                            </button>
-                        </span>
-                    </label>
-                    <label className="block space-y-1.5 sm:col-span-2">
                         <span className="text-xs font-medium text-slate-500">Maintenance Token</span>
                         <span className="flex gap-2">
                             <input className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 font-mono text-xs text-slate-700 outline-none" value={maintenanceToken} readOnly aria-label="计划维护任务令牌" />
@@ -194,7 +176,6 @@ export function DatabaseConfigBuilder() {
                     <FieldNote title="Database / User" text="建议使用独立库和独立账号，避免和同一 PostgreSQL 内其他项目混用。" />
                     <FieldNote title="Password" text="安装页只生成配置文本，不会把数据库密码保存到浏览器或服务端。" />
                     <FieldNote title="Encryption Key" text="随机生成 32 字节密钥；部署后必须保持不变，否则已保存密钥无法解密。" />
-                    <FieldNote title="Install Token" text="只用于初始化数据库和创建首个管理员；安装完成后可从服务器环境变量中移除。" />
                     <FieldNote title="Maintenance Token" text="只用于订单过期、邀请结算等外部计划维护任务。" />
                     <FieldNote title="Worker Token" text="App 与生成 Worker 共享的内部令牌，必须与维护令牌不同。" />
                 </div>
@@ -324,7 +305,7 @@ function buildDeploymentSteps(mode: DeployMode) {
             { title: "保存环境变量", text: "复制“环境变量”并保存到项目根目录 .env；内置 PostgreSQL 会由 Compose 自动创建。" },
             { title: "确认 Compose", text: "使用项目自带 docker-compose.yml，或复制上方包含 App 与生成 Worker 的完整模板。" },
             { title: "启动全部服务", text: "在项目根目录执行命令，Compose 会启动数据库、App 和生成 Worker。", command: "docker compose up -d --force-recreate" },
-            { title: "完成初始化", text: "刷新安装页，确认数据库连接可用后点击“初始化表结构”，然后创建管理员。" },
+            { title: "完成初始化", text: "刷新安装页，确认数据库连接可用后点击“初始化表结构”，然后进入设置或开始创作。" },
         ];
     }
     if (mode === "cloud") {
@@ -332,14 +313,14 @@ function buildDeploymentSteps(mode: DeployMode) {
             { title: "准备云数据库", text: "先在云数据库控制台创建数据库和账号，并按服务商要求放行应用服务器 IP。" },
             { title: "保存环境变量", text: "复制“环境变量”到项目根目录 .env；服务商要求 SSL 时保持“启用 SSL”开启。" },
             { title: "重启应用与 Worker", text: "重新创建两个服务，使数据库配置、加密密钥和彼此隔离的维护/Worker 令牌生效。", command: "docker compose -f docker-compose.external-db.yml up -d --force-recreate" },
-            { title: "完成初始化", text: "刷新安装页，连接成功后点击“初始化表结构”，然后创建管理员。" },
+            { title: "完成初始化", text: "刷新安装页，连接成功后点击“初始化表结构”，然后进入设置或开始创作。" },
         ];
     }
     return [
         { title: "创建数据库", text: "复制“建库命令”并在本机 PostgreSQL 终端执行；已有数据库和账号时可跳过。" },
         { title: "保存环境变量", text: "复制“环境变量”，保存为项目 web 目录下的 .env.local 文件。" },
         { title: "重新启动开发服务", text: "停止旧进程后，在 web 目录重新启动，环境变量才会生效。", command: "npm run dev" },
-        { title: "完成初始化", text: "刷新安装页，连接成功后点击“初始化表结构”，然后创建管理员。" },
+        { title: "完成初始化", text: "刷新安装页，连接成功后点击“初始化表结构”，然后进入设置或开始创作。" },
     ];
 }
 

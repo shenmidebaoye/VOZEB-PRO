@@ -6,10 +6,8 @@ import dayjs from "dayjs";
 import type { ReactNode } from "react";
 import { useRef } from "react";
 
-import type { AdminBillingSummary } from "@/lib/admin-billing-types";
 import type { AdminGenerationOverviewSummary } from "@/lib/admin-generation-overview";
 import type { AuthSettings, CreatedCdkCode, PublicAnnouncement, PublicCdkCode, PublicUser, PublicUserSummary } from "@/lib/auth/store";
-import type { PaymentConfigSummary } from "@/lib/payment-config-types";
 import type { AdminSetupSummary } from "@/lib/server/admin-setup-status";
 import type { StoredGenerationLog } from "@/lib/server/generation-log-store";
 import type { Prompt } from "@/services/api/prompts";
@@ -225,7 +223,7 @@ export function useAdminDashboardDataActions({ state }: { state: AdminDashboardS
         setBillingSummaryLoading(true);
         try {
             const response = await fetch("/api/admin/billing/summary", { cache: "no-store" });
-            const payload = (await response.json().catch(() => null)) as { summary?: AdminBillingSummary; error?: string } | null;
+            const payload = (await response.json().catch(() => null)) as { summary?: Record<string, unknown>; error?: string } | null;
             if (!response.ok || !payload?.summary) throw new Error(payload?.error || "加载财务摘要失败");
             setBillingSummary(payload.summary);
         } catch (error) {
@@ -510,7 +508,7 @@ export function useAdminDashboardDataActions({ state }: { state: AdminDashboardS
     const loadPaymentConfig = async () => {
         try {
             const response = await fetch("/api/admin/billing/payment-config", { cache: "no-store" });
-            const payload = (await response.json().catch(() => null)) as { paymentConfig?: PaymentConfigSummary; error?: string } | null;
+            const payload = (await response.json().catch(() => null)) as { paymentConfig?: Record<string, unknown>; error?: string } | null;
             if (!response.ok || !payload?.paymentConfig) throw new Error(payload?.error || "加载支付配置失败");
             setPaymentConfig(payload.paymentConfig);
         } catch (error) {

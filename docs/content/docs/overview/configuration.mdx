@@ -21,7 +21,6 @@ description: VOZEB PRO 环境变量、模型渠道、服务器媒体与支付配
 | `VOZEB_PRO_DATABASE_SSL_REJECT_UNAUTHORIZED` | 否               | SSL 开启时默认校验证书；仅供应商明确无法提供可信证书时才设为 0                        |
 | `VOZEB_PRO_DATABASE_SSL_CA`                  | 私有 CA 可选     | PEM CA 证书，可使用真实换行或 `\\n`；用于托管数据库的私有证书链                       |
 | `VOZEB_PRO_ENCRYPTION_KEY`                   | 生产必填         | 64 位十六进制或精确 32 字节 Base64 密钥，部署后必须保持稳定                           |
-| `VOZEB_PRO_INSTALL_TOKEN`                    | 首次安装必填     | 至少 32 个字符；只用于初始化数据库和创建首个管理员，安装完成后可移除                  |
 | `VOZEB_PRO_INTERNAL_ORIGIN`                  | 推荐             | 服务端回调自身 API，Docker 默认 `http://127.0.0.1:3000`                               |
 | `VOZEB_PRO_DATA_DIR`                         | 否               | 服务器媒体和文件模式数据目录                                                          |
 | `VOZEB_PRO_COOKIE_SECURE`                    | 否               | 留空自动判断；特殊代理可强制 `true/false`                                             |
@@ -65,7 +64,7 @@ POSTGRES_USER=vozeb_pro
 POSTGRES_PASSWORD=replace-with-a-strong-database-password
 ```
 
-安装页不会保存数据库密码或一次性安装令牌。GET 状态检查只执行连接与表存在性查询；只有提交与服务器 `VOZEB_PRO_INSTALL_TOKEN` 一致的令牌并点击“初始化表结构”才会创建 `vozeb_pro_` 前缀表。创建首个管理员必须再次提交同一令牌，普通公开注册永远只创建普通用户。安装完成后可从 App 环境变量移除该令牌，不影响站点继续运行。
+安装页不会保存数据库密码。GET 状态检查只执行连接与表存在性查询；点击“初始化表结构”才会创建 `vozeb_pro_` 前缀表。创建首个管理员后，普通公开注册永远只创建普通用户。
 
 使用宝塔宿主机 PostgreSQL 时，应用通过 `docker-compose.baota.yml` 的 host 网络连接 `127.0.0.1:5432`；不要同时启动默认 Compose 中的 PostgreSQL 服务。
 
@@ -143,7 +142,7 @@ cd web
 npm run worker:generation
 ```
 
-App 与 Worker 必须共享同一个至少 32 字符的 `VOZEB_PRO_WORKER_TOKEN`，并与只保存在 App/外部调度器中的 `VOZEB_PRO_MAINTENANCE_TOKEN` 保持不同。独立部署 Worker 时再设置 `VOZEB_PRO_WORKER_API_ORIGIN`；Worker 不应读取 App 的完整 `.env`，也不得获得外部维护令牌、`VOZEB_PRO_INSTALL_TOKEN`、数据库、支付、模型或存储密钥。同一实例的 Worker ID 应保持稳定，便于就绪检查和故障诊断。`/api/health/ready` 会把缺少 Worker 令牌、令牌未隔离、从未收到心跳或心跳过期报告为生成 Worker 未就绪。
+App 与 Worker 必须共享同一个至少 32 字符的 `VOZEB_PRO_WORKER_TOKEN`，并与只保存在 App/外部调度器中的 `VOZEB_PRO_MAINTENANCE_TOKEN` 保持不同。独立部署 Worker 时再设置 `VOZEB_PRO_WORKER_API_ORIGIN`；Worker 不应读取 App 的完整 `.env`，也不得获得外部维护令牌、数据库、支付、模型或存储密钥。同一实例的 Worker ID 应保持稳定，便于就绪检查和故障诊断。`/api/health/ready` 会把缺少 Worker 令牌、令牌未隔离、从未收到心跳或心跳过期报告为生成 Worker 未就绪。
 
 图片、视频和音频结果统一由 Worker 查询并写入本地任务；渠道接入不要求配置额外回调密钥。
 

@@ -11,7 +11,7 @@ test("fresh deployments enter the installation flow", async ({ page }) => {
 
     await expect(page).toHaveURL(/\/install(?:\?|$)/);
     await expect(page.getByRole("link", { name: /安装向导/ })).toBeVisible();
-    await expect(page.getByText("三步完成服务器初始化", { exact: true })).toBeVisible();
+    await expect(page.getByText("两步完成，本机创作工具，不创建账号", { exact: true })).toBeVisible();
     await expect(page.locator('[style*="/logo.svg"]').first()).toBeVisible();
 });
 
@@ -27,27 +27,20 @@ test("public session omits internal configuration fields", async ({ request }) =
     expect(serialized).not.toContain("VOZEB_PRO_");
 });
 
-test("initialization rejects a wrong token and creates the first administrator once", async ({ page, request }) => {
+test("initialization creates the first administrator once", async ({ page, request }) => {
     const statusResponse = await request.get("/api/install/status");
     expect(statusResponse.ok()).toBe(true);
     let install = ((await statusResponse.json()) as { install: { database?: { schemaReady?: boolean } } }).install;
 
     if (install.database?.schemaReady === false) {
-        const rejectedInitialization = await request.post("/api/install/initialize", { data: { installToken: "wrong-install-token" } });
-        expect(rejectedInitialization.status()).toBeGreaterThanOrEqual(400);
-        const initialized = await request.post("/api/install/initialize", { data: { installToken: E2E_ADMIN.installToken } });
+        const initialized = await request.post("/api/install/initialize");
         expect(initialized.ok()).toBe(true);
         install = ((await initialized.json()) as { data: { install: typeof install } }).data.install;
         expect(install.database?.schemaReady).toBe(true);
     }
 
-    const rejectedRegistration = await request.post("/api/auth/register", {
-        data: { username: E2E_ADMIN.username, displayName: E2E_ADMIN.displayName, password: E2E_ADMIN.password, installToken: "wrong-install-token" },
-    });
-    expect(rejectedRegistration.status()).toBeGreaterThanOrEqual(400);
-
     const registration = await request.post("/api/auth/register", {
-        data: { username: E2E_ADMIN.username, displayName: E2E_ADMIN.displayName, password: E2E_ADMIN.password, installToken: E2E_ADMIN.installToken },
+        data: { username: E2E_ADMIN.username, displayName: E2E_ADMIN.displayName, password: E2E_ADMIN.password },
     });
     expect(registration.ok()).toBe(true);
     expect(await registration.json()).toMatchObject({ user: { username: E2E_ADMIN.username, role: "admin" } });

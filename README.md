@@ -4,7 +4,7 @@
 
 <h1 align="center">VOZEB PRO</h1>
 
-<p align="center">面向统一创作 Agent、Canvas 与短剧生产的源码公开 AI 创作平台</p>
+<p align="center">面向统一创作 Agent、Canvas 与短剧生产的本机 AI 创作工具</p>
 
 <p align="center">
   <a href="https://github.com/csyqlz/VOZEB-PRO"><img src="https://img.shields.io/github/stars/csyqlz/VOZEB-PRO?style=flat-square&logo=github" alt="GitHub stars"></a>
@@ -24,18 +24,16 @@
 
 ![VOZEB PRO 首页](docs/public/screenshots/pages/01-home.webp)
 
-VOZEB PRO 把统一创作 Agent、画布、短剧生产、素材库和商业运营后台放在同一套 Next.js 全栈应用中。PostgreSQL 保存账号与业务数据；媒体可写入服务器本地目录或 S3 兼容对象存储；模型、支付和存储密钥只在服务端使用。
+VOZEB PRO 把统一创作 Agent、画布、短剧生产和素材库放在同一套 Next.js 全栈应用中。本机单实例使用，无需登录与多用户后台；模型渠道在「设置」中配置，密钥只在服务端使用。PostgreSQL 或文件 Provider 保存业务数据；媒体可写入服务器本地目录或 S3 兼容对象存储。
 
 ## 核心功能
 
 - **统一创作 Agent**：文字问答、图片、视频和音频在同一会话中完成，支持参考素材、首帧/首尾帧、Skill、智能规划、手动逻辑模型、比例/画质/时长/数量、自定义像素、多结果、历史恢复、失败重试、WebP 预览和原件下载。
 - **画布**：文本、图片、视频、音频与生成节点，支持拖拽、连线、缩放、撤销重做、导入导出和 Agent Run。
 - **短剧生产线**：剧本、内容审核、角色/场景/道具、分镜、镜头视频、配音、字幕、版本和 FFmpeg 合成。
-- **作品广场**：作品草稿、版本审核、发布分享、广场检索、作者主页、点赞关注、下架重发和内容治理。
-- **模型与协议**：管理员维护渠道、协议、真实模型、逻辑模型、能力、优先级和默认值，覆盖 OpenAI、Gemini、Seedance 2.0、Stable Diffusion、A1111/Forge 和声明式自定义协议。
-- **持久生成**：独立 Worker 负责图片、视频、音频和 Agent 任务续取，页面关闭或实例切换后继续查询原上游任务，并在生成运维中处理异常任务。
-- **商业后台**：用户、套餐、促销、优惠券、邀请奖励、积分、CDK、订单、支付、退款、对账、财务流水、作品治理、公告、提示词和审计日志。
-- **存储与备份**：本地媒体、S3 兼容对象存储、引用保护、对象迁移和脱敏业务数据导入导出。
+- **模型与协议**：在设置中维护渠道、协议、真实模型、逻辑模型、能力、优先级和默认值，覆盖 OpenAI、Gemini、Seedance 2.0、Stable Diffusion、A1111/Forge 和声明式自定义协议。
+- **持久生成**：独立 Worker 负责图片、视频、音频和 Agent 任务续取，页面关闭或实例切换后继续查询原上游任务。
+- **存储与备份**：本地媒体、S3 兼容对象存储、引用保护和脱敏业务数据导入导出。
 
 ## 许可证与商业使用
 
@@ -398,6 +396,17 @@ VOZEB PRO 调用外部 AI 模型，不要求 GPU。服务器主要承担 Web、P
 
 > 安装过 0.0.2 的用户必须先删除旧数据库或数据库卷，再重新安装 0.0.7，并通过 `/install` 重新初始化数据库；不支持沿用旧数据库或原地升级。
 
+### 本机创作工具
+
+```bash
+cd web && pnpm install
+# 配置 web/.env.local（至少 VOZEB_PRO_DATABASE_PROVIDER=file 与 VOZEB_PRO_ENCRYPTION_KEY）
+pnpm start          # 仓库根目录
+# 或：pnpm --dir web start:local
+```
+
+浏览器打开 `http://127.0.0.1:3000`，进入 `/create` 创作，在 `/settings` 配置渠道与站点。
+
 ### Docker Compose
 
 环境要求：可运行 Docker Compose 的 Linux 服务器、HTTPS 域名，以及按业务需要准备的模型渠道。
@@ -414,12 +423,11 @@ cp .env.example .env
 NEXT_PUBLIC_SITE_URL=https://vozeb-pro.example.com
 POSTGRES_PASSWORD=replace-with-a-strong-password
 VOZEB_PRO_ENCRYPTION_KEY=replace-with-openssl-rand-hex-32
-VOZEB_PRO_INSTALL_TOKEN=replace-with-one-time-openssl-rand-hex-32
 VOZEB_PRO_MAINTENANCE_TOKEN=replace-with-another-openssl-rand-hex-32
 VOZEB_PRO_WORKER_TOKEN=replace-with-a-distinct-openssl-rand-hex-32
 ```
 
-为四个变量分别执行一次下面的命令，并保存每次不同的输出。维护令牌与 Worker 令牌必须不同：
+为三个密钥变量分别执行一次下面的命令，并保存每次不同的输出。维护令牌与 Worker 令牌必须不同：
 
 ```bash
 openssl rand -hex 32
@@ -433,7 +441,7 @@ docker compose up -d
 docker compose ps
 ```
 
-`VOZEB_PRO_INSTALL_TOKEN` 只用于初始化数据库和创建首个管理员，必须从服务器 `.env` 粘贴到安装向导；安装完成后可从环境变量中移除。`VOZEB_PRO_MAINTENANCE_TOKEN` 只授权外部计划维护任务，`VOZEB_PRO_WORKER_TOKEN` 只授权 App 与生成 Worker 的内部任务领取、心跳和回调。Worker 不读取包含数据库、支付、安装令牌或外部维护令牌的完整 `.env`。完整变量说明见[配置说明](docs/content/docs/overview/configuration.mdx)。
+`VOZEB_PRO_MAINTENANCE_TOKEN` 只授权外部计划维护任务，`VOZEB_PRO_WORKER_TOKEN` 只授权 App 与生成 Worker 的内部任务领取、心跳和回调。Worker 不读取包含数据库、支付或外部维护令牌的完整 `.env`。完整变量说明见[配置说明](docs/content/docs/overview/configuration.mdx)。
 
 打开 `https://你的域名/install`，依次检查数据库、初始化表结构并创建首个管理员。
 

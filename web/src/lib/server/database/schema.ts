@@ -1,5 +1,4 @@
 import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
-import { POSTGRESQL_COMMERCIAL_FEATURES_SCHEMA_SQL } from "./schema-commercial-features";
 import { POSTGRESQL_TRIGGER_SCHEMA_SQL } from "./schema-triggers";
 
 const FULL_ADMIN_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
@@ -737,8 +736,6 @@ VALUES
     '{"highlight":"高频商业创作"}'::jsonb
 )
 ON CONFLICT (id) DO NOTHING;
-
-${POSTGRESQL_COMMERCIAL_FEATURES_SCHEMA_SQL}
 
 CREATE TABLE IF NOT EXISTS billing_reconciliation_runs (
     id text PRIMARY KEY,

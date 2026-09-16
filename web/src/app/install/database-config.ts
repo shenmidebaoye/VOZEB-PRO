@@ -16,7 +16,6 @@ type DatabaseConfig = {
     password: string;
     ssl: boolean;
     encryptionKey: string;
-    installToken: string;
     maintenanceToken: string;
     workerToken: string;
 };
@@ -39,7 +38,6 @@ ${databaseEnv}
 VOZEB_PRO_DATABASE_POOL_MAX=10
 VOZEB_PRO_DATABASE_SSL=${config.ssl ? "1" : "0"}
 VOZEB_PRO_ENCRYPTION_KEY=${config.encryptionKey}
-VOZEB_PRO_INSTALL_TOKEN=${config.installToken}
 VOZEB_PRO_MAINTENANCE_TOKEN=${config.maintenanceToken}
 VOZEB_PRO_WORKER_TOKEN=${config.workerToken}${config.mode === "baota" ? "\nVOZEB_PRO_TRUSTED_PROXY_HOPS=1" : ""}`;
 
@@ -88,7 +86,6 @@ function bundledCompose(config: DatabaseConfig, database: string, username: stri
       DATABASE_URL: ${quoteYaml(databaseUrl)}
       VOZEB_PRO_DATABASE_SSL: "0"
       VOZEB_PRO_ENCRYPTION_KEY: ${quoteYaml(config.encryptionKey)}
-      VOZEB_PRO_INSTALL_TOKEN: ${quoteYaml(config.installToken)}
       VOZEB_PRO_MAINTENANCE_TOKEN: ${quoteYaml(config.maintenanceToken)}
       VOZEB_PRO_WORKER_TOKEN: ${quoteYaml(config.workerToken)}
     depends_on:
@@ -117,7 +114,6 @@ function externalCompose(config: DatabaseConfig, databaseUrl: string) {
       DATABASE_URL: ${quoteYaml(databaseUrl)}
       VOZEB_PRO_DATABASE_SSL: "${config.ssl ? "1" : "0"}"
       VOZEB_PRO_ENCRYPTION_KEY: ${quoteYaml(config.encryptionKey)}
-      VOZEB_PRO_INSTALL_TOKEN: ${quoteYaml(config.installToken)}
       VOZEB_PRO_MAINTENANCE_TOKEN: ${quoteYaml(config.maintenanceToken)}
       VOZEB_PRO_WORKER_TOKEN: ${quoteYaml(config.workerToken)}
 ${appHealthcheck()}
@@ -141,7 +137,6 @@ function baotaCompose(config: DatabaseConfig, databaseUrl: string) {
       DATABASE_URL: ${quoteYaml(databaseUrl)}
       VOZEB_PRO_DATABASE_SSL: "0"
       VOZEB_PRO_ENCRYPTION_KEY: ${quoteYaml(config.encryptionKey)}
-      VOZEB_PRO_INSTALL_TOKEN: ${quoteYaml(config.installToken)}
       VOZEB_PRO_MAINTENANCE_TOKEN: ${quoteYaml(config.maintenanceToken)}
       VOZEB_PRO_WORKER_TOKEN: ${quoteYaml(config.workerToken)}
       VOZEB_PRO_TRUSTED_PROXY_HOPS: "1"

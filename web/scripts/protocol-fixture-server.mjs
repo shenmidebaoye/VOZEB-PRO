@@ -172,7 +172,8 @@ async function handleFixtureRequest({ request, response, url, body, tasks, reque
         if (options.failImage || shouldFailRequest(request, model)) return sendJson(response, options.failImage || model.includes("-fail") ? 400 : 503, { error: { message: "fixture image failure" } });
         const image = requestsTransparentBackground(body, request.headers["content-type"] || "") ? Buffer.from(TRANSPARENT_PNG_BASE64, "base64") : await fixtureImage(options);
         const images = requestsLayeredOutput(body) ? await layeredFixtureImages(body, request.headers["content-type"] || "", options) : [image];
-        return sendJson(response, 200, { created: Math.floor(Date.now() / 1000), data: images.map((item) => ({ b64_json: item.toString("base64"), revised_prompt: "protocol fixture" })) });
+        const payload = { created: Math.floor(Date.now() / 1000), data: images.map((item) => ({ b64_json: item.toString("base64"), revised_prompt: "protocol fixture" })) };
+        return sendJson(response, 200, options.wrapOpenAiImageGateway ? { code: 200, message: "success", data: payload } : payload);
     }
     if (request.method === "POST" && ["/sdapi/v1/txt2img", "/sdapi/v1/img2img"].includes(path)) {
         return sendJson(response, 200, { images: [(await fixtureImage(options)).toString("base64")], info: "{}" });

@@ -18,18 +18,15 @@ vi.mock("@/lib/server/data-adapter", () => ({
 
 import { createFirstAdmin, createUserByAdmin, deleteUserByAdmin, updateUserByAdmin } from "./store";
 
-const INSTALL_TOKEN = "install-token-".padEnd(48, "x");
-
 describe("administrator user-management duties", () => {
     beforeEach(() => {
         memory.value = undefined;
-        vi.stubEnv("VOZEB_PRO_INSTALL_TOKEN", INSTALL_TOKEN);
     });
 
     afterEach(() => vi.unstubAllEnvs());
 
     it("prevents a limited administrator from managing a broader administrator", async () => {
-        const owner = await createFirstAdmin({ username: "owner", password: "password123", installToken: INSTALL_TOKEN });
+        const owner = await createFirstAdmin({ username: "owner", password: "password123" });
         const limited = await createUserByAdmin({ actorId: owner.id, username: "limited", password: "password123", role: "admin", adminPermissions: ["administrators.manage"] });
         const systemAdmin = await createUserByAdmin({ actorId: owner.id, username: "system-admin", password: "password123", role: "admin", adminPermissions: ["administrators.manage", "system.manage"] });
 
@@ -38,7 +35,7 @@ describe("administrator user-management duties", () => {
     });
 
     it("allows delegation only within the current administrator permission set", async () => {
-        const owner = await createFirstAdmin({ username: "owner", password: "password123", installToken: INSTALL_TOKEN });
+        const owner = await createFirstAdmin({ username: "owner", password: "password123" });
         const limited = await createUserByAdmin({ actorId: owner.id, username: "limited", password: "password123", role: "admin", adminPermissions: ["administrators.manage"] });
 
         await expect(createUserByAdmin({ actorId: limited.id, username: "too-powerful", password: "password123", role: "admin", adminPermissions: ["administrators.manage", "system.manage"] })).rejects.toMatchObject({ status: 403 });

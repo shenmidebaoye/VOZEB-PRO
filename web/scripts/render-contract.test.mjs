@@ -30,7 +30,7 @@ describe("Render Blueprint contract", () => {
         expect(() => validateSource(unsafe)).toThrow("Render Worker 不应直接持有数据库配置");
     });
 
-    it("rejects exposing the one-time install token to the Worker", () => {
+    it("rejects exposing leftover install-token env to the Worker", () => {
         const unsafe = source.replace("      - key: NODE_OPTIONS\n        value: --max-old-space-size=128", "      - key: VOZEB_PRO_INSTALL_TOKEN\n        generateValue: true\n      - key: NODE_OPTIONS\n        value: --max-old-space-size=128");
 
         expect(() => validateSource(unsafe)).toThrow("Render Worker 不得获得一次性安装令牌");

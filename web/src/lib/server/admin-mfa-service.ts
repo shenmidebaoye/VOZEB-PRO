@@ -7,7 +7,7 @@ import { getAuthSettings } from "@/lib/auth/store-settings-actions";
 import type { PublicUser, StoredUser } from "@/lib/auth/store-types";
 import { publicUserFromAuthenticatedRecord, toPublicUser } from "@/lib/auth/store-user-projection";
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction } from "@/lib/server/database";
-import { walletClock } from "@/lib/server/points-wallet-service";
+import { walletClock } from "@/lib/server/wallet-clock";
 import { decryptSecretValue, encryptSecretValue } from "@/lib/server/secret-crypto";
 
 type AdminMfaUser = {

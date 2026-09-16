@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 
-import { deleteSession, getPublicUsersByIds, getUserBySession, sessionMaxAgeSeconds, type AuthSettings, type PublicUser } from "./store";
-import { authorizedWorkerUserId } from "@/lib/server/maintenance-auth";
+import { deleteSession, sessionMaxAgeSeconds, type AuthSettings, type PublicUser } from "./store";
+import { ensureLocalOwner } from "./local-owner";
 import { getTrustedProxyHops } from "@/lib/server/trusted-proxy";
 import { parseSessionCookie } from "./store-normalizers";
 
@@ -15,13 +15,9 @@ async function getSessionCookieValue() {
     return cookieStore.get(SESSION_COOKIE_NAME)?.value;
 }
 
-export async function getCurrentUser(request?: Request) {
-    const sessionUser = await getUserBySession(await getSessionCookieValue());
-    if (sessionUser || !request) return sessionUser;
-    const workerUserId = authorizedWorkerUserId(request);
-    if (!workerUserId) return null;
-    const workerUser = (await getPublicUsersByIds([workerUserId]))[0];
-    return workerUser?.status === "active" ? workerUser : null;
+/** Local single-instance tool: no login; always resolve the local owner. */
+export async function getCurrentUser(_request?: Request) {
+    return ensureLocalOwner();
 }
 
 export async function clearCurrentSession() {

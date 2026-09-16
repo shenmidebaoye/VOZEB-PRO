@@ -1,7 +1,6 @@
 "use client";
 
 import { GenerationLogDetail } from "@/components/admin/admin-generation-log";
-import { AdminOverview } from "@/components/admin/admin-overview";
 import { AdminSectionNav } from "@/components/admin/admin-section-nav";
 import type { AdminSectionKey } from "@/components/admin/admin-sections";
 import { Button, Form, Input, Modal } from "antd";
@@ -33,25 +32,8 @@ const loadMediaStorageSection = () => import("./admin-system-sections").then((mo
 const loadExternalStorageSection = () => import("./admin-system-sections").then((module) => module.AdminExternalStorageSection);
 const loadBackupSection = () => import("./admin-system-sections").then((module) => module.AdminBackupSection);
 const loadUpdatesSection = () => import("./admin-system-sections").then((module) => module.AdminUpdatesSection);
-const loadWalletSection = () => import("./admin-wallet-section").then((module) => module.AdminWalletSection);
-const loadPointsSection = () => import("./admin-points-section").then((module) => module.AdminPointsSection);
-const loadOrdersSection = () => import("./admin-billing-sections").then((module) => module.AdminOrdersSection);
-const loadProductsSection = () => import("./admin-billing-sections").then((module) => module.AdminProductsSection);
-const loadPromotionsSection = () => import("./admin-billing-sections").then((module) => module.AdminPromotionsSection);
-const loadCouponsSection = () => import("./admin-billing-sections").then((module) => module.AdminCouponsSection);
-const loadPaymentsSection = () => import("./admin-billing-sections").then((module) => module.AdminPaymentsSection);
-const loadCdkSection = () => import("./admin-cdk-section").then((module) => module.AdminCdkSection);
-const loadReferralsSection = () => import("./admin-marketing-sections").then((module) => module.AdminReferralsSection);
 const loadChannelsSection = () => import("./admin-upstream-sections").then((module) => module.AdminChannelsSection);
 const loadSkillsSection = () => import("./admin-upstream-sections").then((module) => module.AdminSkillsSection);
-const loadAnnouncementsSection = () => import("./admin-content-sections").then((module) => module.AdminAnnouncementsSection);
-const loadPromptsSection = () => import("./admin-content-sections").then((module) => module.AdminPromptsSection);
-const loadWorksSection = () => import("@/app/admin/works/components/admin-works-section").then((module) => module.AdminWorksSection);
-const loadHelpSection = () => import("./admin-help-section").then((module) => module.AdminHelpSection);
-const loadUsersSection = () => import("./admin-users-section").then((module) => module.AdminUsersSection);
-const loadLogsSection = () => import("./admin-logs-section").then((module) => module.AdminLogsSection);
-const loadGenerationOperationsSection = () => import("./admin-generation-operations-section").then((module) => module.AdminGenerationOperationsSection);
-const loadAccountDeletionSection = () => import("./admin-account-deletion-section").then((module) => module.AdminAccountDeletionSection);
 
 const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> = {
     site: loadSiteSection,
@@ -60,25 +42,8 @@ const sectionLoaders: Partial<Record<AdminSectionKey, () => Promise<unknown>>> =
     externalStorage: loadExternalStorageSection,
     backup: loadBackupSection,
     updates: loadUpdatesSection,
-    wallet: loadWalletSection,
-    points: loadPointsSection,
-    orders: loadOrdersSection,
-    products: loadProductsSection,
-    payments: loadPaymentsSection,
-    cdk: loadCdkSection,
-    promotions: loadPromotionsSection,
-    coupons: loadCouponsSection,
-    referrals: loadReferralsSection,
     channels: loadChannelsSection,
     skills: loadSkillsSection,
-    announcements: loadAnnouncementsSection,
-    prompts: loadPromptsSection,
-    works: loadWorksSection,
-    adminHelp: loadHelpSection,
-    users: loadUsersSection,
-    logs: loadLogsSection,
-    generationOperations: loadGenerationOperationsSection,
-    accountDeletion: loadAccountDeletionSection,
 };
 
 const AdminSiteSection = dynamic(loadSiteSection, { loading: AdminSectionLoading });
@@ -87,25 +52,8 @@ const AdminBackupSection = dynamic(loadBackupSection, { loading: AdminSectionLoa
 const AdminExternalStorageSection = dynamic(loadExternalStorageSection, { loading: AdminSectionLoading });
 const AdminMediaStorageSection = dynamic(loadMediaStorageSection, { loading: AdminSectionLoading });
 const AdminUpdatesSection = dynamic(loadUpdatesSection, { loading: AdminSectionLoading });
-const AdminWalletSection = dynamic(loadWalletSection, { loading: AdminSectionLoading });
-const AdminPointsSection = dynamic(loadPointsSection, { loading: AdminSectionLoading });
-const AdminOrdersSection = dynamic(loadOrdersSection, { loading: AdminSectionLoading });
-const AdminProductsSection = dynamic(loadProductsSection, { loading: AdminSectionLoading });
-const AdminPromotionsSection = dynamic(loadPromotionsSection, { loading: AdminSectionLoading });
-const AdminCouponsSection = dynamic(loadCouponsSection, { loading: AdminSectionLoading });
-const AdminReferralsSection = dynamic(loadReferralsSection, { loading: AdminSectionLoading });
-const AdminPaymentsSection = dynamic(loadPaymentsSection, { loading: AdminSectionLoading });
-const AdminCdkSection = dynamic(loadCdkSection, { loading: AdminSectionLoading });
 const AdminChannelsSection = dynamic(loadChannelsSection, { loading: AdminSectionLoading });
 const AdminSkillsSection = dynamic(loadSkillsSection, { loading: AdminSectionLoading });
-const AdminAnnouncementsSection = dynamic(loadAnnouncementsSection, { loading: AdminSectionLoading });
-const AdminPromptsSection = dynamic(loadPromptsSection, { loading: AdminSectionLoading });
-const AdminWorksSection = dynamic(loadWorksSection, { loading: AdminSectionLoading });
-const AdminHelpSection = dynamic(loadHelpSection, { loading: AdminSectionLoading });
-const AdminUsersSection = dynamic(loadUsersSection, { loading: AdminSectionLoading });
-const AdminLogsSection = dynamic(loadLogsSection, { loading: AdminSectionLoading });
-const AdminGenerationOperationsSection = dynamic(loadGenerationOperationsSection, { loading: AdminSectionLoading });
-const AdminAccountDeletionSection = dynamic(loadAccountDeletionSection, { loading: AdminSectionLoading });
 
 function AdminSectionLoading() {
     return <div className="flex min-h-36 items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">正在加载分区...</div>;
@@ -180,7 +128,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                                 <Menu className="size-4" />
                             </button>
                             <div className="min-w-0 items-center gap-2 text-xs text-zinc-400 lg:flex">
-                                <span>后台</span>
+                                <span>设置</span>
                                 <span>/</span>
                                 <strong className="truncate font-medium text-zinc-700 dark:text-zinc-300">{activeSectionInfo.label}</strong>
                             </div>
@@ -188,7 +136,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                         <div className="admin-dashboard-actions flex min-w-0 items-center gap-2 sm:justify-end">
                             {setupSummary && nextSetupStep ? (
                                 <Link
-                                    href="/admin/setup"
+                                    href="/settings"
                                     title={`下一项：${nextSetupStep.title}`}
                                     className="admin-dashboard-setup-pill group flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-left transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
                                 >
@@ -217,47 +165,14 @@ export function AdminDashboard(props: AdminDashboardProps) {
                         <div className="mt-1 line-clamp-2 max-w-3xl text-xs leading-5 text-zinc-500 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:leading-6 dark:text-zinc-400">{activeSectionInfo.description}</div>
                     </section>
 
-                    {activeSection === "overview" ? (
-                        <AdminOverview
-                            stats={stats}
-                            settingsSummary={settingsSummary}
-                            walletSummary={walletSummary}
-                            billingSummary={billingSummary}
-                            operationsSummary={operationsSummary}
-                            promptCount={promptCount}
-                            assetStats={assetStats}
-                            enabledProducts={setupSummary?.enabledProducts || 0}
-                            billingLoading={billingSummaryLoading}
-                            loading={operationsSummaryLoading}
-                            onRefreshBilling={loadBillingSummary}
-                            onRefresh={() => void loadOperationsSummary()}
-                        />
-                    ) : null}
                     {activeSection === "site" ? <AdminSiteSection controller={controller} /> : null}
                     {activeSection === "settings" ? <AdminSettingsSection controller={controller} /> : null}
-                    {activeSection === "accountDeletion" ? <AdminAccountDeletionSection active /> : null}
                     {activeSection === "mediaStorage" ? <AdminMediaStorageSection controller={controller} /> : null}
                     {activeSection === "externalStorage" ? <AdminExternalStorageSection controller={controller} /> : null}
                     {activeSection === "backup" ? <AdminBackupSection controller={controller} /> : null}
-                    {activeSection === "wallet" ? <AdminWalletSection controller={controller} /> : null}
-                    {activeSection === "points" ? <AdminPointsSection controller={controller} /> : null}
-                    {activeSection === "orders" ? <AdminOrdersSection controller={controller} /> : null}
-                    {activeSection === "products" ? <AdminProductsSection controller={controller} /> : null}
-                    {activeSection === "promotions" ? <AdminPromotionsSection controller={controller} /> : null}
-                    {activeSection === "coupons" ? <AdminCouponsSection controller={controller} /> : null}
-                    {activeSection === "referrals" ? <AdminReferralsSection controller={controller} /> : null}
-                    {activeSection === "payments" ? <AdminPaymentsSection controller={controller} /> : null}
                     {activeSection === "updates" ? <AdminUpdatesSection controller={controller} /> : null}
                     {activeSection === "channels" ? <AdminChannelsSection controller={controller} /> : null}
                     {activeSection === "skills" ? <AdminSkillsSection controller={controller} /> : null}
-                    {activeSection === "cdk" ? <AdminCdkSection controller={controller} /> : null}
-                    {activeSection === "announcements" ? <AdminAnnouncementsSection controller={controller} /> : null}
-                    {activeSection === "works" ? <AdminWorksSection /> : null}
-                    {activeSection === "prompts" ? <AdminPromptsSection controller={controller} /> : null}
-                    {activeSection === "users" ? <AdminUsersSection controller={controller} /> : null}
-                    {activeSection === "logs" ? <AdminLogsSection controller={controller} /> : null}
-                    {activeSection === "generationOperations" ? <AdminGenerationOperationsSection controller={controller} /> : null}
-                    {activeSection === "adminHelp" ? <AdminHelpSection onOpenSection={setActiveSection} /> : null}
                 </div>
             </div>
 

@@ -1,5 +1,5 @@
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction } from "@/lib/server/database";
-import { walletClock } from "@/lib/server/points-wallet-service";
+import { walletClock } from "@/lib/server/wallet-clock";
 
 import { AuthInputError } from "./store-foundation";
 import { readAuthDb, mutateAuthDb } from "./store-repository";

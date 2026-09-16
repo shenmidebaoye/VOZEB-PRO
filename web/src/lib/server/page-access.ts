@@ -1,11 +1,13 @@
-import { getCurrentUser } from "@/lib/auth/session";
+import { ensureLocalOwner } from "@/lib/auth/local-owner";
 import { getInstallStatus } from "@/lib/server/install-status";
 
 export async function getAuthenticatedPageAccess() {
-    try {
-        const user = await getCurrentUser();
-        if (user) return { user, install: null };
-    } catch {}
     const install = await getInstallStatus();
-    return { user: null, install };
+    if (!install.ready) return { user: null, install };
+    try {
+        const user = await ensureLocalOwner();
+        return { user, install: null };
+    } catch {
+        return { user: null, install };
+    }
 }

@@ -50,7 +50,7 @@ export function validateRenderBlueprint({ repoRoot, source, dockerfile: dockerfi
     ensure(webEnvironment.VOZEB_PRO_DATA_DIR?.value === "/app/web/.data", "Web 数据目录必须位于持久盘");
     ensure(webEnvironment.DATABASE_URL?.fromDatabase?.name === "vozeb-pro-postgres", "Web 必须引用 Blueprint PostgreSQL");
     ensure(webEnvironment.VOZEB_PRO_ENCRYPTION_KEY?.generateValue === true, "Web 必须生成稳定加密密钥");
-    ensure(webEnvironment.VOZEB_PRO_INSTALL_TOKEN?.generateValue === true, "Web 必须生成一次性安装令牌");
+    ensure(!webEnvironment.VOZEB_PRO_INSTALL_TOKEN, "Web 不得再声明一次性安装令牌");
     ensure(webEnvironment.VOZEB_PRO_MAINTENANCE_TOKEN?.generateValue === true, "Web 必须生成独立维护令牌");
     ensure(!workerEnvironment.VOZEB_PRO_INSTALL_TOKEN, "Render Worker 不得获得一次性安装令牌");
     ensure(!workerEnvironment.VOZEB_PRO_MAINTENANCE_TOKEN, "Render Worker 不得获得外部维护令牌");

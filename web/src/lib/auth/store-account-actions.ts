@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import { lockAuthMutation } from "@/lib/server/auth-mutation-lock";
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction, type QueryExecutor } from "@/lib/server/database";
-import { adjustPermanentPointsInAuthDb, adjustPermanentPointsInPostgresTransaction, walletClock } from "@/lib/server/points-wallet-service";
+import { walletClock } from "@/lib/server/wallet-clock";
 import { consumePostgresEmailCode } from "./postgres-email-code-service";
 import { hashPassword, verifyPassword } from "./password";
 import { AuthInputError, SESSION_MAX_AGE_SECONDS } from "./store-foundation";
@@ -275,16 +275,8 @@ export async function updateUserByAdmin(actorId: string, userId: string, patch: 
 
             let walletPointsBalance: number | undefined;
             if (patch.pointsBalance !== undefined) {
-                const delta = normalizePoints(patch.pointsBalance, user.pointsBalance) - normalizePoints(user.pointsBalance, 0);
-                const wallet = await adjustPermanentPointsInPostgresTransaction(client, {
-                    userId: user.id,
-                    amount: delta,
-                    description: "管理员后台调整",
-                    idempotencyKey: `admin-adjust:${user.id}:${randomUUID()}`,
-                    type: "admin-adjust",
-                    now: clock.now,
-                });
-                walletPointsBalance = wallet?.snapshot.totalPoints;
+                walletPointsBalance = normalizePoints(patch.pointsBalance, user.pointsBalance);
+                await repos.users.update(user.id, { pointsBalance: walletPointsBalance });
             }
             if (patch.password || nextStatus !== "active") await repos.sessions.deleteByUserId(user.id);
             const record = (await repos.users.getPublicDetails([user.id], { now: clock.now.toISOString(), date: clock.date }))[0];
@@ -329,16 +321,9 @@ export async function updateUserByAdmin(actorId: string, userId: string, patch: 
         if (patch.planId !== undefined) user.planId = resolvePlanById(db.settings.entitlements, patch.planId).id;
         let walletPointsBalance: number | undefined;
         if (patch.pointsBalance !== undefined) {
-            const previousBalance = normalizePoints(user.pointsBalance, 0);
-            const delta = normalizePoints(patch.pointsBalance, user.pointsBalance) - previousBalance;
+            walletPointsBalance = normalizePoints(patch.pointsBalance, user.pointsBalance);
             if (nextStatus === "active") user.status = "active";
-            const wallet = adjustPermanentPointsInAuthDb(db, {
-                userId: user.id,
-                amount: delta,
-                description: "管理员后台调整",
-                idempotencyKey: `admin-adjust:${user.id}:${randomUUID()}`,
-            });
-            walletPointsBalance = wallet?.snapshot.totalPoints;
+            user.pointsBalance = walletPointsBalance;
         }
         user.status = nextStatus;
         user.updatedAt = new Date().toISOString();

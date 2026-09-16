@@ -1,5 +1,5 @@
 import { type AuthenticatedUserRecord } from "@/lib/server/database";
-import { walletClock } from "@/lib/server/points-wallet-service";
+import { walletClock } from "@/lib/server/wallet-clock";
 import { userAvatarUrl } from "@/lib/user-avatar";
 
 import { DEFAULT_ENTITLEMENT_SETTINGS } from "./store-foundation";

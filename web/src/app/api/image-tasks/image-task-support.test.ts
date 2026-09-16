@@ -8,6 +8,7 @@ import {
     allowsImageProtocolFallback,
     findImageResult,
     ImageQueryContractError,
+    ImageUpstreamTerminalError,
     imageRequestAspectRatio,
     imagePointsIdempotencyKey,
     imageTaskPollAttempts,
@@ -17,6 +18,7 @@ import {
     openAiImageTaskPath,
     parseImagePayloadOrPoll,
     parseImagePayloadCompat,
+    readImagePayloadError,
     parseImageQueryJson,
     resolveRequestSize,
     resolveResultSize,
@@ -147,6 +149,54 @@ describe("GlobalAiOpc image task paths", () => {
         await expect(parseImagePayloadOrPoll(openAiConfig, { id: "upstream-one" }, "http://localhost/api/ai/system/openai-image", "", "http://localhost/api/ai/system/openai-image", true)).resolves.toMatchObject({
             needsReview: { upstream: { id: "upstream-one" } },
         });
+    });
+
+    it("reads images from a gateway envelope that uses HTTP-style success codes", async () => {
+        const openAiConfig = {
+            baseUrl: "https://provider.example/v1",
+            model: "gpt-image-2",
+            apiFormat: "openai",
+            advancedConfig: { protocol: "openai", createPath: "/images/generations", queryPath: "" },
+        } as never;
+
+        await expect(
+            parseImagePayloadOrPoll(
+                openAiConfig,
+                { code: 200, message: "success", data: { created: 1, data: [{ url: "https://cdn.example.com/gpt-image-2.png" }] } } as never,
+                "https://provider.example/v1/images/generations",
+                "",
+                "https://provider.example/v1/images/generations",
+                true,
+            ),
+        ).resolves.toMatchObject({ dataUrl: "https://cdn.example.com/gpt-image-2.png" });
+
+        expect(parseImagePayloadCompat({ code: 200, data: [{ url: "https://cdn.example.com/ok.png" }] } as never, "https://provider.example/v1/images/generations", openAiConfig)).toMatchObject({
+            dataUrl: "https://cdn.example.com/ok.png",
+        });
+        expect(readImagePayloadError({ code: 200, message: "success" } as never)).toBe("");
+    });
+
+    it("keeps a code 200 task-id envelope for review instead of treating it as a terminal failure", async () => {
+        const openAiConfig = {
+            baseUrl: "/api/ai/system/openai-image",
+            model: "gpt-image-2",
+            apiFormat: "openai",
+            advancedConfig: { protocol: "openai", createPath: "/images/generations", queryPath: "" },
+        } as never;
+
+        await expect(
+            parseImagePayloadOrPoll(openAiConfig, { code: 200, data: { id: "upstream-one", status: "pending" } } as never, "http://localhost/api/ai/system/openai-image", "", "http://localhost/api/ai/system/openai-image", true),
+        ).resolves.toMatchObject({
+            needsReview: { upstream: { id: "upstream-one" } },
+        });
+    });
+
+    it("still treats explicit OpenAI and provider business errors as terminal failures", () => {
+        expect(readImagePayloadError({ error: { message: "Your request was rejected" } })).toBe("Your request was rejected");
+        expect(readImagePayloadError({ code: 1, msg: "余额不足" })).toBe("余额不足");
+        expect(() => parseImagePayloadCompat({ code: 1, msg: "余额不足" }, "https://provider.example/v1/images/generations", { baseUrl: "https://provider.example/v1", model: "gpt-image-2", apiFormat: "openai" } as never)).toThrow(
+            ImageUpstreamTerminalError,
+        );
     });
 
     it("keeps every image returned by one upstream response", () => {

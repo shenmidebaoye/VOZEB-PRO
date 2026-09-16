@@ -33,8 +33,6 @@ services:
         value: "1"
       - key: VOZEB_PRO_ENCRYPTION_KEY
         generateValue: true
-      - key: VOZEB_PRO_INSTALL_TOKEN
-        generateValue: true
       - key: VOZEB_PRO_MAINTENANCE_TOKEN
         generateValue: true
       - key: NEXT_PUBLIC_SITE_URL

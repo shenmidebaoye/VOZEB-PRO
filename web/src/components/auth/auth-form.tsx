@@ -18,8 +18,6 @@ type AuthFormProps = {
     registrationEnabled?: boolean;
     emailRegistrationEnabled?: boolean;
     firstUser?: boolean;
-    installToken?: string;
-    onInstallTokenChange?: (value: string) => void;
     variant?: "page" | "embedded";
     className?: string;
     headerSlot?: ReactNode;
@@ -35,8 +33,6 @@ export function AuthForm({
     registrationEnabled = true,
     emailRegistrationEnabled = false,
     firstUser = false,
-    installToken = "",
-    onInstallTokenChange,
     variant = "page",
     className,
     headerSlot,
@@ -62,7 +58,6 @@ export function AuthForm({
     const [sendingCode, setSendingCode] = useState(false);
     const isRegister = mode === "register";
     const disabled = isRegister && !registrationEnabled;
-    const installTokenReady = !firstUser || installToken.trim().length >= 32;
 
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -82,7 +77,6 @@ export function AuthForm({
                     referralCode: isRegister && !firstUser ? referralCode : undefined,
                     referralSource,
                     policyAccepted: isRegister && !firstUser ? policyAccepted : undefined,
-                    installToken: firstUser ? installToken.trim() : undefined,
                 }),
             });
             const payload = (await response.json()) as { user?: LocalUser; error?: string; mfaRequired?: boolean; securityNotice?: { networkChanged: boolean; deviceChanged: boolean } };
@@ -140,23 +134,6 @@ export function AuthForm({
                 {isRegister && inviteError ? <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">{inviteError}</div> : null}
 
                 {disabled ? <div className="rounded-md border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-300/20 dark:bg-cyan-300/8 dark:text-cyan-50">当前站点已关闭注册，请联系管理员开通账号。</div> : null}
-
-                {firstUser ? (
-                    <label className="block space-y-3">
-                        <span className="text-sm font-medium text-stone-700 dark:text-stone-200">一次性安装令牌</span>
-                        <Input.Password
-                            size="large"
-                            prefix={<LockKeyhole className="size-4 text-stone-500" />}
-                            value={installToken}
-                            onChange={(event) => onInstallTokenChange?.(event.target.value)}
-                            placeholder="从服务器 .env 中粘贴 VOZEB_PRO_INSTALL_TOKEN"
-                            autoComplete="off"
-                            disabled={submitting}
-                            required
-                        />
-                        <span className="block text-xs leading-5 text-stone-500 dark:text-stone-400">令牌只保存在当前页面内存中，不会写入浏览器存储。</span>
-                    </label>
-                ) : null}
 
                 <label className="block space-y-3">
                     <span className="text-sm font-medium text-stone-700 dark:text-stone-200">{isRegister ? "用户名" : "用户名或邮箱"}</span>
@@ -291,7 +268,7 @@ export function AuthForm({
                     size="large"
                     block
                     loading={submitting}
-                    disabled={disabled || !installTokenReady || (isRegister && !firstUser && !policyAccepted)}
+                    disabled={disabled || (isRegister && !firstUser && !policyAccepted)}
                     icon={<ArrowRight className="size-4" />}
                     iconPlacement="end"
                 >

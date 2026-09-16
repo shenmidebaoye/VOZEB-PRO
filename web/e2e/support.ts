@@ -4,7 +4,6 @@ export const E2E_ADMIN = {
     username: "e2e_admin",
     password: "VozebE2E!2026",
     displayName: "E2E 管理员",
-    installToken: "vozeb-pro-e2e-install-token-32chars",
 };
 
 export const E2E_PROTOCOL_ORIGIN = `http://127.0.0.1:${Number(process.env.VOZEB_PRO_PROTOCOL_FIXTURE_PORT || 4010)}`;

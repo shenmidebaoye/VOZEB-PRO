@@ -1,12 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { formatAccountId } from "@/lib/account-id";
-import { BillingInputError } from "@/lib/server/billing-errors";
 import { lockAuthMutation } from "@/lib/server/auth-mutation-lock";
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction } from "@/lib/server/database";
-import { assertInstallToken, InstallTokenError } from "@/lib/server/install-token";
-import { adjustPermanentPointsInAuthDb, adjustPermanentPointsInPostgresTransaction, walletClock } from "@/lib/server/points-wallet-service";
-import { bindReferralRelationshipAfterRegistration, normalizeReferralCode } from "@/lib/server/referral-service";
+import { walletClock } from "@/lib/server/wallet-clock";
 import { createRegistrationPolicyConsent } from "@/lib/registration-consent";
 import { verifyAdminMfaForLogin } from "@/lib/server/admin-mfa-service";
 import { ALL_ADMIN_PERMISSIONS, hasAdminPermission, hasAllAdminPermissions, normalizeAdminPermissions, type AdminPermission } from "@/lib/admin-permissions";
@@ -34,8 +31,6 @@ import { publicUserFromAuthenticatedRecord, toPublicUser } from "./store-user-pr
 import { type AuthDatabase, type EmailCodePurpose, type StoredUser, type UserRole, type UserStatus } from "./store-types";
 
 export async function createUser(input: { username: string; email?: string; emailCode?: string; displayName?: string; password: string; policyAccepted: boolean; referralCode?: string; referralSource?: string; referralClientIp?: string }) {
-    const referralCode = normalizeReferralCode(input.referralCode);
-    if (referralCode && !isPostgresDatabaseEnabled()) throw new AuthInputError("邀请功能需要启用 PostgreSQL", 501);
     const username = normalizeUsername(input.username);
     const email = normalizeEmail(input.email);
     const displayName = normalizeDisplayName(input.displayName || username);
@@ -85,20 +80,6 @@ export async function createUser(input: { username: string; email?: string; emai
                 createdAt: now,
                 updatedAt: now,
             });
-            if (referralCode) {
-                try {
-                    await bindReferralRelationshipAfterRegistration(client, {
-                        inviteeUserId: user.id,
-                        referralCode,
-                        attributionSource: input.referralSource,
-                        clientIp: input.referralClientIp,
-                        strict: true,
-                    });
-                } catch (error) {
-                    if (error instanceof BillingInputError) throw new AuthInputError(error.message, error.status);
-                    throw error;
-                }
-            }
             const record = (await repos.users.getPublicDetails([user.id], { now, date: clock.date }))[0];
             if (!record) throw new AuthInputError("用户创建失败");
             return { ok: true as const, user: publicUserFromAuthenticatedRecord(record, clock.expiresAt) };
@@ -147,14 +128,7 @@ export async function createUser(input: { username: string; email?: string; emai
     });
 }
 
-export async function createFirstAdmin(input: { username: string; email?: string; displayName?: string; password: string; installToken: unknown }) {
-    try {
-        assertInstallToken(input.installToken);
-    } catch (error) {
-        if (error instanceof InstallTokenError) throw new AuthInputError(error.message, error.status);
-        throw error;
-    }
-
+export async function createFirstAdmin(input: { username: string; email?: string; displayName?: string; password: string }) {
     const username = normalizeUsername(input.username);
     const email = normalizeEmail(input.email);
     const displayName = normalizeDisplayName(input.displayName || username);
@@ -258,27 +232,16 @@ export async function createUserByAdmin(input: {
                 bio: "",
                 role: input.role === "admin" ? "admin" : "user",
                 adminPermissions: input.role === "admin" ? normalizeAdminPermissions(input.adminPermissions) : [],
-                status: "active",
+                status: intendedStatus,
                 planId: plan.id,
-                pointsBalance: 0,
+                pointsBalance,
                 passwordHash: await hashPassword(input.password),
                 createdAt: now,
                 updatedAt: now,
             });
-            if (pointsBalance) {
-                await adjustPermanentPointsInPostgresTransaction(client, {
-                    userId: user.id,
-                    amount: pointsBalance,
-                    description: "管理员创建用户",
-                    idempotencyKey: `admin-create:${user.id}`,
-                    type: "admin-adjust",
-                    now: clock.now,
-                });
-            }
-            if (intendedStatus !== "active") await repos.users.update(user.id, { status: intendedStatus });
             const record = (await repos.users.getPublicDetails([user.id], { now, date: clock.date }))[0];
             if (!record) throw new AuthInputError("用户创建失败");
-            return publicUserFromAuthenticatedRecord(record, clock.expiresAt);
+            return { ...publicUserFromAuthenticatedRecord(record, clock.expiresAt), pointsBalance };
         });
     }
 
@@ -301,17 +264,15 @@ export async function createUserByAdmin(input: {
             bio: "",
             role: input.role === "admin" ? "admin" : "user",
             adminPermissions: input.role === "admin" ? normalizeAdminPermissions(input.adminPermissions) : [],
-            status: "active",
+            status: intendedStatus,
             planId: plan.id,
-            pointsBalance: 0,
+            pointsBalance,
             passwordHash: await hashPassword(input.password),
             createdAt: now,
             updatedAt: now,
         };
         db.users.push(user);
-        const wallet = pointsBalance ? adjustPermanentPointsInAuthDb(db, { userId: user.id, amount: pointsBalance, description: "管理员创建用户", idempotencyKey: `admin-create:${user.id}`, now: new Date(now) }) : null;
-        user.status = intendedStatus;
-        return { ...toPublicUser(user, db), pointsBalance: wallet?.snapshot.totalPoints || 0 };
+        return { ...toPublicUser(user, db), pointsBalance };
     });
 }
 

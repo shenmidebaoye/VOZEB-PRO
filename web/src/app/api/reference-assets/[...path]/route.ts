@@ -36,10 +36,10 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
     const signed = Boolean(registration && !isLocalMediaRegistrationExpired(registration) && verifyReferenceAssetSignature(storagePath, url.searchParams.get("purpose"), url.searchParams.get("expires"), signature, registration.ownerUserId));
     if (signed && url.searchParams.get("download") === "original") return NextResponse.json({ code: 403, data: null, msg: "上游读取签名不提供原件下载" }, { status: 403 });
     let rateIdentity = `signature:${signature}`;
-    let currentUser: Awaited<ReturnType<typeof getCurrentUser>> = null;
+    let currentUser: Awaited<ReturnType<typeof getCurrentUser>> | null = null;
     if (!signed) {
         currentUser = await getCurrentUser(request);
-        if (!currentUser) return NextResponse.json({ code: 401, data: null, msg: "请先登录" }, { status: 401 });
+        if (!currentUser) return NextResponse.json({ code: 503, data: null, msg: "本机实例未就绪" }, { status: 503 });
         rateIdentity = `user:${currentUser.id}`;
     }
     const rate = await checkLocalMediaRateLimit(rateIdentity, request);

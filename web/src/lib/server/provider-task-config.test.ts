@@ -94,6 +94,7 @@ describe("provider task config", () => {
         expect(isProviderBusinessError(payload)).toBe(true);
         expect(readProviderError(payload)).toBe("登录验证失败");
         expect(isProviderBusinessError({ id: "video_123", status: "queued", error: null })).toBe(false);
+        expect(isProviderBusinessError({ code: 200, message: "success", data: [{ url: "https://cdn.example.com/ok.png" }] })).toBe(false);
     });
 
     it("rejects reference media disabled by the backend channel", () => {

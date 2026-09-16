@@ -92,13 +92,8 @@ async function readPointsExportData(userId: string) {
     return points.map(({ userId: _userId, idempotencyKey: _idempotencyKey, sourceRecordId: _sourceRecordId, ...record }) => record);
 }
 
-async function readBillingExportData(userId: string) {
-    const billing = await readBillingData(userId);
-    return {
-        orders: billing.orders.map(({ userId: _userId, metadata: _metadata, providerOrderId: _providerOrderId, providerPaymentId: _providerPaymentId, ...order }) => order),
-        payments: billing.payments.map(({ userId: _userId, rawPayload: _rawPayload, providerTradeId: _providerTradeId, providerPaymentId: _providerPaymentId, ...payment }) => payment),
-        planAssignments: billing.planAssignments.map(({ userId: _userId, metadata: _metadata, sourceId: _sourceId, ...assignment }) => assignment),
-    };
+async function readBillingExportData(_userId: string) {
+    return { orders: [], payments: [], planAssignments: [] };
 }
 
 async function readPromptsExportData(userId: string) {
@@ -146,37 +141,12 @@ async function readMediaExportData(userId: string) {
     return media.map(({ ownerUserId: _ownerUserId, externalStorageId: _externalStorageId, externalObjectKey: _externalObjectKey, ...item }) => item);
 }
 
-async function readCommercialData(userId: string) {
-    if (!isPostgresDatabaseEnabled()) return { coupons: [], referralRelationships: [], referralRewards: [], works: [], notifications: [] };
-    await ensurePostgresSchema();
-    const repos = createPostgresRepositories();
-    const [coupons, referralRelationships, referralRewards, workSummaries, notifications] = await Promise.all([
-        collectPages((page) => repos.coupons.listUserCoupons(userId, { page, pageSize: PAGE_SIZE })),
-        collectPages((page) => repos.referrals.listRelationships({ participantUserId: userId, page, pageSize: PAGE_SIZE })),
-        collectPages((page) => repos.referrals.listRewards({ beneficiaryUserId: userId, page, pageSize: PAGE_SIZE })),
-        collectPages((page) => repos.workPublications.listWorks({ ownerUserId: userId, page, pageSize: PAGE_SIZE })),
-        readAllNotifications(repos.workCommunity, userId),
-    ]);
-    const works = await mapInBatches(workSummaries, 6, async (summary) => {
-        const [work, versions] = await Promise.all([repos.workPublications.getWorkById(summary.id, userId), repos.workPublications.listVersionsByWork(summary.id)]);
-        return {
-            work,
-            versions: await mapInBatches(versions, 8, async (version) => ({ version, assets: await repos.workPublications.listVersionAssets(version.id) })),
-        };
-    });
-    return sanitizePortableData({ coupons, referralRelationships, referralRewards, works, notifications });
+async function readCommercialData(_userId: string) {
+    return { coupons: [], referralRelationships: [], referralRewards: [], works: [], notifications: [] };
 }
 
-async function readBillingData(userId: string) {
-    if (!isPostgresDatabaseEnabled()) return { orders: [], payments: [], planAssignments: [] };
-    await ensurePostgresSchema();
-    const billing = createPostgresRepositories().billing;
-    const [orders, payments, planAssignments] = await Promise.all([
-        collectPages((page) => billing.listOrders({ userId, page, pageSize: PAGE_SIZE })),
-        collectPages((page) => billing.listPayments({ userId, page, pageSize: PAGE_SIZE })),
-        collectPages((page) => billing.listPlanAssignments({ userId, page, pageSize: PAGE_SIZE })),
-    ]);
-    return { orders, payments, planAssignments };
+async function readBillingData(_userId: string) {
+    return { orders: [], payments: [], planAssignments: [] };
 }
 
 async function readCreativeData(userId: string) {

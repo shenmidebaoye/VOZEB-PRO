@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
     provider: "postgres" as "file" | "postgres",
@@ -31,7 +31,6 @@ import { getInstallStatus, initializeInstallDatabase, InstallInitializationError
 
 describe("install status cache", () => {
     beforeEach(() => {
-        vi.stubEnv("VOZEB_PRO_INSTALL_TOKEN", "install-token-".padEnd(48, "x"));
         invalidateInstallStatusCache();
         mocks.provider = "postgres";
         mocks.connectionString = "postgres://vozeb:test@localhost:5432/vozeb";
@@ -40,10 +39,6 @@ describe("install status cache", () => {
         mocks.postgresQuery.mockReset();
         mocks.getPublicUserSummary.mockReset();
         mocks.encryption = { ready: true, message: "加密密钥已就绪。" };
-    });
-
-    afterEach(() => {
-        vi.unstubAllEnvs();
     });
 
     it("reuses a completed healthy installation check", async () => {
@@ -59,12 +54,12 @@ describe("install status cache", () => {
         expect(mocks.postgresQuery.mock.calls.map(([statement]) => String(statement))).toEqual(["SELECT 1", expect.stringContaining("to_regclass"), expect.stringContaining("count(*)")]);
     });
 
-    it("does not retain the first-admin-required result", async () => {
-        mockHealthySchema(["0", "1"]);
+    it("marks schema-ready empty databases as ready without requiring an admin user", async () => {
+        mockHealthySchema(["0"]);
 
-        expect((await getInstallStatus()).firstAdminRequired).toBe(true);
+        expect((await getInstallStatus()).firstAdminRequired).toBe(false);
         expect((await getInstallStatus()).ready).toBe(true);
-        expect(mocks.postgresQuery).toHaveBeenCalledTimes(6);
+        expect(mocks.postgresQuery).toHaveBeenCalledTimes(3);
     });
 
     it("coalesces concurrent installation checks", async () => {
@@ -89,7 +84,7 @@ describe("install status cache", () => {
     it("runs schema DDL only through the explicit initializer", async () => {
         mockHealthySchema(["0"]);
 
-        await expect(initializeInstallDatabase(process.env.VOZEB_PRO_INSTALL_TOKEN)).resolves.toMatchObject({ firstAdminRequired: true, database: { schemaReady: true } });
+        await expect(initializeInstallDatabase()).resolves.toMatchObject({ firstAdminRequired: false, ready: true, database: { schemaReady: true } });
 
         expect(mocks.initializePostgresSchema).toHaveBeenCalledTimes(1);
         expect(mocks.ensurePostgresSchema).not.toHaveBeenCalled();
@@ -106,28 +101,19 @@ describe("install status cache", () => {
             return { rows: [{ total: "0" }] };
         });
 
-        await expect(initializeInstallDatabase(process.env.VOZEB_PRO_INSTALL_TOKEN)).resolves.toMatchObject({ firstAdminRequired: true, database: { schemaReady: true } });
+        await expect(initializeInstallDatabase()).resolves.toMatchObject({ firstAdminRequired: false, ready: true, database: { schemaReady: true } });
         expect(mocks.initializePostgresSchema).toHaveBeenCalledTimes(1);
     });
 
     it("rejects repeated initialization after the first user exists", async () => {
         mockHealthySchema(["1"]);
 
-        await expect(initializeInstallDatabase(process.env.VOZEB_PRO_INSTALL_TOKEN)).rejects.toEqual(
+        await expect(initializeInstallDatabase()).rejects.toEqual(
             expect.objectContaining<Partial<InstallInitializationError>>({
                 message: "项目已完成安装，禁止重复初始化数据库",
                 status: 409,
             }),
         );
-        expect(mocks.initializePostgresSchema).not.toHaveBeenCalled();
-    });
-
-    it("rejects a missing or incorrect install token before schema DDL", async () => {
-        mockHealthySchema(["0", "0"]);
-
-        await expect(initializeInstallDatabase(undefined)).rejects.toMatchObject({ status: 403 });
-        invalidateInstallStatusCache();
-        await expect(initializeInstallDatabase("wrong-token".padEnd(48, "x"))).rejects.toMatchObject({ status: 403 });
         expect(mocks.initializePostgresSchema).not.toHaveBeenCalled();
     });
 });

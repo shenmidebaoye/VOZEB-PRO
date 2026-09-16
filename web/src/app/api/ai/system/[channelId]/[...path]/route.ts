@@ -1,8 +1,8 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { consumeUserPoints, getAuthSettings, isAuthInputError, isQuotaExceededError, refundUserPoints, type ApiCallFormat, type GenerationPointMultipliers, type PointUsageKind } from "@/lib/auth/store";
+import { getAuthSettings, type ApiCallFormat, type GenerationPointMultipliers, type PointUsageKind } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
 import { DEFAULT_CHANNEL_CONNECT_ERROR } from "@/lib/server/generation-errors";
 import { UnsupportedMediaContentError } from "@/lib/server/media-content-validation";
@@ -15,7 +15,7 @@ import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { readRequestBodyBytes, RequestBodyTooLargeError } from "@/lib/server/request-body-limit";
 import { resolveGlobalAiOpcPathPreset, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { adaptGlobalAiOpcTextRequest, adaptGlobalAiOpcTextResponse, isGlobalAiOpcChannel } from "@/lib/server/globalaiopc-proxy";
-import { readVerifiedSystemAiBusinessRequestId, SYSTEM_AI_LOGICAL_MODEL_HEADER, SYSTEM_AI_UPSTREAM_MODEL_HEADER, systemAiPointsIdempotencyKey, systemAiRequestFingerprint } from "@/lib/server/system-ai-billing";
+import { SYSTEM_AI_LOGICAL_MODEL_HEADER, SYSTEM_AI_UPSTREAM_MODEL_HEADER } from "@/lib/server/system-ai-billing";
 import { isAgnesApiBaseUrl } from "@/lib/agnes-model-catalog";
 import { channelConnectionReady, protocolAuthHeaders, resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
 import { normalizeYumengModelCenterBaseUrl } from "@/lib/yumeng-model-center";
@@ -65,9 +65,9 @@ export async function DELETE(request: Request, context: RouteContext) {
 }
 
 async function proxySystemRequest(request: Request, context: RouteContext) {
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(request);
     const userId = currentUser?.id || authorizedWorkerUserId(request);
-    if (!userId) return NextResponse.json({ error: "请先登录" }, { status: 401 });
+    if (!userId) return NextResponse.json({ error: "本机实例未就绪" }, { status: 503 });
 
     const { channelId, path } = await context.params;
     const settings = await getAuthSettings();
@@ -111,7 +111,7 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
             settings.logicalModels,
             settings.generationPointMultipliers,
         );
-    if (pointsRequest?.model && !channelHasModel(channel.models, pointsRequest.model)) return NextResponse.json({ error: "该模型未在后台渠道中启用" }, { status: 403 });
+    if (pointsRequest?.model && !channelHasModel(channel.models, pointsRequest.model)) return NextResponse.json({ error: "该模型未在渠道中启用" }, { status: 403 });
     const access = authorizeSystemAiProxyRequest({
         method: request.method,
         path: globalAdaptation?.path || path,
@@ -149,40 +149,6 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     if (clientRequestId) headers.set("x-client-request-id", clientRequestId);
     const authConfig = modelConfig?.protocol ? { ...channel.advancedConfig, protocol: modelConfig.protocol } : channel.advancedConfig;
     Object.entries(protocolAuthHeaders(channel.apiKey, authConfig, globalChannel ? "openai" : apiFormat)).forEach(([key, value]) => headers.set(key, value));
-    const callType = `${access.capability}:${access.operation}:/${(globalAdaptation?.path || path).join("/")}`;
-    const businessRequestId = readVerifiedSystemAiBusinessRequestId(request.headers, access.logicalModelId, upstreamModel) || `direct:${randomUUID()}`;
-    const pointsIdempotencyKey = pointsRequest ? systemAiPointsIdempotencyKey({ userId, businessRequestId, logicalModel: access.logicalModelId, channelId: channel.id, upstreamModel, callType }) : undefined;
-    const requestFingerprint = pointsRequest
-        ? systemAiRequestFingerprint({
-              method: request.method,
-              callType,
-              logicalModel: access.logicalModelId,
-              channelId: channel.id,
-              upstreamModel,
-              usageKind: pointsRequest.usageKind,
-              amount: pointsRequest.amount,
-              bodyDigest: requestBody.bodyDigest,
-          })
-        : undefined;
-    let pointsResult: Awaited<ReturnType<typeof consumeUserPoints>> | null = null;
-    let refundedPointsRemaining: number | null = null;
-    let pointsSettled = false;
-    const refundConsumedPoints = async () => {
-        if (!pointsResult || pointsSettled) return;
-        pointsSettled = true;
-        const refundedUser = await refundUserPoints(userId, pointsResult.model, pointsResult.cost, pointsResult.usageKind, pointsResult.units, undefined, pointsResult.recordId);
-        refundedPointsRemaining = typeof refundedUser?.pointsBalance === "number" ? refundedUser.pointsBalance : null;
-    };
-    if (pointsRequest) {
-        try {
-            pointsResult = await consumeUserPoints(userId, access.logicalModelId, pointsRequest.amount, pointsRequest.usageKind, pointsIdempotencyKey, requestFingerprint);
-        } catch (error) {
-            if (isQuotaExceededError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
-            if (isAuthInputError(error)) return NextResponse.json({ error: error.message }, { status: error.status });
-            throw error;
-        }
-    }
-    request.signal.addEventListener("abort", () => void refundConsumedPoints(), { once: true });
 
     let upstream: Response;
     try {
@@ -195,50 +161,38 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
             signal: request.signal,
         });
     } catch (error) {
-        await refundConsumedPoints();
         console.error("System API proxy request failed", error instanceof Error ? error.message : error);
-        return NextResponse.json({ error: DEFAULT_CHANNEL_CONNECT_ERROR }, { status: 502, headers: responseHeaders(new Headers(), null, refundedPointsRemaining) });
+        return NextResponse.json({ error: DEFAULT_CHANNEL_CONNECT_ERROR }, { status: 502, headers: responseHeaders(new Headers(), target) });
     }
 
-    if (!upstream.ok && pointsResult) {
-        await refundConsumedPoints();
-        pointsResult = null;
-    }
     if (isRedirectStatus(upstream.status)) {
-        return NextResponse.json({ error: "上游接口不允许重定向，请检查后台渠道地址" }, { status: 502, headers: responseHeaders(new Headers(), null, refundedPointsRemaining) });
+        return NextResponse.json({ error: "上游接口不允许重定向，请检查渠道地址" }, { status: 502, headers: responseHeaders(new Headers()) });
     }
     if (globalAdaptation && upstream.ok) {
         const payload = await upstream.json().catch(() => null);
         if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-            await refundConsumedPoints();
-            pointsResult = null;
-            return NextResponse.json({ error: "上游文本接口返回了无效 JSON" }, { status: 502, headers: responseHeaders(upstream.headers, null, refundedPointsRemaining, target) });
+            return NextResponse.json({ error: "上游文本接口返回了无效 JSON" }, { status: 502, headers: responseHeaders(upstream.headers, target) });
         }
-        pointsSettled = true;
-        return NextResponse.json(adaptGlobalAiOpcTextResponse(globalAdaptation.adapter, payload), { status: upstream.status, headers: responseHeaders(upstream.headers, pointsResult, refundedPointsRemaining, target) });
+        return NextResponse.json(adaptGlobalAiOpcTextResponse(globalAdaptation.adapter, payload), { status: upstream.status, headers: responseHeaders(upstream.headers, target) });
     }
     if (isJsonResponse(upstream)) {
         try {
             const body = await upstream.arrayBuffer();
-            if (upstream.ok) pointsSettled = true;
             return new Response(body, {
                 status: upstream.status,
                 statusText: upstream.statusText,
-                headers: responseHeaders(upstream.headers, pointsResult, refundedPointsRemaining, target),
+                headers: responseHeaders(upstream.headers, target),
             });
         } catch (error) {
-            await refundConsumedPoints();
-            pointsResult = null;
             console.error("System API proxy response body failed", error instanceof Error ? error.message : error);
-            return NextResponse.json({ error: DEFAULT_CHANNEL_CONNECT_ERROR }, { status: 502, headers: responseHeaders(new Headers(), null, refundedPointsRemaining) });
+            return NextResponse.json({ error: DEFAULT_CHANNEL_CONNECT_ERROR }, { status: 502, headers: responseHeaders(new Headers()) });
         }
     }
-    if (upstream.ok) pointsSettled = true;
 
     return new Response(upstream.body, {
         status: upstream.status,
         statusText: upstream.statusText,
-        headers: responseHeaders(upstream.headers, pointsResult, refundedPointsRemaining, target),
+        headers: responseHeaders(upstream.headers, target),
     });
 }
 
@@ -659,7 +613,7 @@ function normalizeApiBaseUrl(baseUrl: string, apiFormat: "openai" | "gemini", gl
     return `${normalized}/v1`;
 }
 
-function responseHeaders(headers: Headers, pointsResult?: Awaited<ReturnType<typeof consumeUserPoints>> | null, refundedPointsRemaining?: number | null, upstreamUrl?: string) {
+function responseHeaders(headers: Headers, upstreamUrl?: string) {
     const nextHeaders = new Headers();
     const passthrough = ["content-type", "cache-control", "content-disposition"];
     passthrough.forEach((key) => {
@@ -667,15 +621,5 @@ function responseHeaders(headers: Headers, pointsResult?: Awaited<ReturnType<typ
         if (value) nextHeaders.set(key, value);
     });
     if (upstreamUrl) nextHeaders.set("x-vozeb-pro-upstream-url", upstreamUrl);
-    if (pointsResult) {
-        nextHeaders.set("x-vozeb-pro-points-cost", String(pointsResult.cost));
-        nextHeaders.set("x-vozeb-pro-points-remaining", String(pointsResult.remaining));
-        nextHeaders.set("x-vozeb-pro-points-permanent", String(pointsResult.permanentRemaining));
-        nextHeaders.set("x-vozeb-pro-points-daily", String(pointsResult.dailyRemaining));
-        nextHeaders.set("x-vozeb-pro-points-daily-expires-at", pointsResult.dailyExpiresAt);
-        if (pointsResult.recordId) nextHeaders.set("x-vozeb-pro-points-record-id", pointsResult.recordId);
-    } else if (typeof refundedPointsRemaining === "number") {
-        nextHeaders.set("x-vozeb-pro-points-remaining", String(refundedPointsRemaining));
-    }
     return nextHeaders;
 }

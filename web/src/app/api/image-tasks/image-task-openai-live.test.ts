@@ -57,6 +57,44 @@ describe("OpenAI image provider over a live compatible fixture", () => {
         }
     });
 
+    it("parses gpt-image-2 results wrapped in a gateway code 200 envelope", async () => {
+        const fixture = createProtocolFixtureServer({ wrapOpenAiImageGateway: true });
+        await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));
+        const address = fixture.server.address();
+        if (!address || typeof address === "string") throw new Error("Protocol fixture did not bind a TCP port");
+        const origin = `http://127.0.0.1:${address.port}`;
+        const task: ImageTask = {
+            id: "image-gateway-live",
+            userId: "user-live",
+            username: "user",
+            displayName: "User",
+            kind: "generation",
+            source: "image-workbench",
+            status: "running",
+            createdAt: 1,
+            updatedAt: 1,
+            config: {
+                baseUrl: origin,
+                apiKey: "fixture-key",
+                apiFormat: "openai",
+                model: "gpt-image-2",
+                channelId: "fixture-image",
+                advancedConfig: { ...emptyAdvancedConfig(), protocol: "openai", createPath: "/images/generations", queryPath: "" },
+            },
+            candidateConfigs: [],
+            prompt: "create a blue protocol test image",
+            references: [],
+        };
+
+        try {
+            await expect(runOpenAiImageTask(task, "http://internal", "http://public", "", true)).resolves.toMatchObject({ dataUrl: expect.stringMatching(/^data:image\/png;base64,iVBOR/) });
+            expect(fixture.requests).toHaveLength(1);
+            expect(fixture.requests[0]).toMatchObject({ method: "POST", path: "/v1/images/generations" });
+        } finally {
+            await new Promise<void>((resolve, reject) => fixture.server.close((error?: Error) => (error ? reject(error) : resolve())));
+        }
+    });
+
     it("uses the selected GlobalAiOpc image preset once and polls its declared result path", async () => {
         const fixture = createProtocolFixtureServer();
         await new Promise<void>((resolve) => fixture.server.listen(0, "127.0.0.1", resolve));

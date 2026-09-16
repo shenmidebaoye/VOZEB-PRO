@@ -18,8 +18,6 @@ vi.mock("@/lib/server/data-adapter", () => ({
 
 import { createEmailVerificationCode, createFirstAdmin, resetPasswordByEmail } from "./store";
 
-const INSTALL_TOKEN = "install-token-".padEnd(48, "x");
-
 type StoredDb = {
     emailCodes: Array<{
         id: string;
@@ -38,7 +36,6 @@ type StoredDb = {
 describe("consumeEmailCode attempt tracking", () => {
     beforeEach(() => {
         memory.value = undefined;
-        vi.stubEnv("VOZEB_PRO_INSTALL_TOKEN", INSTALL_TOKEN);
     });
 
     afterEach(() => {
@@ -46,7 +43,7 @@ describe("consumeEmailCode attempt tracking", () => {
     });
 
     it("accepts a correct verification code on the first attempt", async () => {
-        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123", installToken: INSTALL_TOKEN });
+        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123" });
         const { code } = await createEmailVerificationCode({ purpose: "password-reset", email: "test@example.com" });
 
         const user = await resetPasswordByEmail({ email: "test@example.com", code, newPassword: "newpass12345" });
@@ -54,7 +51,7 @@ describe("consumeEmailCode attempt tracking", () => {
     });
 
     it("rejects a wrong verification code with the correct error", async () => {
-        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123", installToken: INSTALL_TOKEN });
+        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123" });
         await createEmailVerificationCode({ purpose: "password-reset", email: "test@example.com" });
 
         await expect(resetPasswordByEmail({ email: "test@example.com", code: "000000", newPassword: "newpass12345" })).rejects.toThrow("邮箱验证码不正确或已过期");
@@ -69,7 +66,7 @@ describe("consumeEmailCode attempt tracking", () => {
     });
 
     it("persists failed attempts and invalidates the code after five failures", async () => {
-        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123", installToken: INSTALL_TOKEN });
+        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123" });
         const { code } = await createEmailVerificationCode({ purpose: "password-reset", email: "test@example.com" });
 
         for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -81,7 +78,7 @@ describe("consumeEmailCode attempt tracking", () => {
     });
 
     it("throws '验证码错误次数过多' after 5 failed attempts", async () => {
-        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123", installToken: INSTALL_TOKEN });
+        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123" });
         const { code } = await createEmailVerificationCode({ purpose: "password-reset", email: "test@example.com" });
 
         // Seed the stored email code with attempts = 5 (simulating 5 prior failures)
@@ -95,7 +92,7 @@ describe("consumeEmailCode attempt tracking", () => {
     });
 
     it("accepts the correct code after 4 failed attempts (still under limit)", async () => {
-        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123", installToken: INSTALL_TOKEN });
+        await createFirstAdmin({ username: "admin", email: "test@example.com", password: "password123" });
         const { code } = await createEmailVerificationCode({ purpose: "password-reset", email: "test@example.com" });
 
         // Seed the stored email code with attempts = 4

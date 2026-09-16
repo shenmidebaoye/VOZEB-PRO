@@ -1,7 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const memory = vi.hoisted(() => ({ value: undefined as unknown }));
-const TOKEN = "install-token-".padEnd(48, "x");
 
 vi.mock("@/lib/server/database", () => ({
     ensurePostgresSchema: vi.fn(),
@@ -22,11 +21,6 @@ import { createFirstAdmin, createUser } from "./store";
 describe("first administrator creation", () => {
     beforeEach(() => {
         memory.value = undefined;
-        vi.stubEnv("VOZEB_PRO_INSTALL_TOKEN", TOKEN);
-    });
-
-    afterEach(() => {
-        vi.unstubAllEnvs();
     });
 
     it("rejects public registration before installation", async () => {
@@ -34,12 +28,10 @@ describe("first administrator creation", () => {
         expect(memory.value).toBeUndefined();
     });
 
-    it("requires the configured token and creates exactly one administrator", async () => {
-        await expect(createFirstAdmin({ username: "admin", password: "password123", installToken: "wrong-token".padEnd(48, "x") })).rejects.toMatchObject({ status: 403 });
-
-        const admin = await createFirstAdmin({ username: "admin", password: "password123", installToken: TOKEN });
+    it("creates exactly one administrator from the installation wizard", async () => {
+        const admin = await createFirstAdmin({ username: "admin", password: "password123" });
         expect(admin.role).toBe("admin");
-        await expect(createFirstAdmin({ username: "admin-two", password: "password123", installToken: TOKEN })).rejects.toMatchObject({ status: 409 });
+        await expect(createFirstAdmin({ username: "admin-two", password: "password123" })).rejects.toMatchObject({ status: 409 });
 
         await expect(createUser({ username: "normal-user", password: "password123", policyAccepted: false })).rejects.toThrow("请先阅读并同意服务条款和隐私政策");
 
@@ -55,7 +47,7 @@ describe("first administrator creation", () => {
     });
 
     it("serializes concurrent first-admin attempts", async () => {
-        const outcomes = await Promise.allSettled([createFirstAdmin({ username: "admin-one", password: "password123", installToken: TOKEN }), createFirstAdmin({ username: "admin-two", password: "password123", installToken: TOKEN })]);
+        const outcomes = await Promise.allSettled([createFirstAdmin({ username: "admin-one", password: "password123" }), createFirstAdmin({ username: "admin-two", password: "password123" })]);
 
         expect(outcomes.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
         expect(outcomes.filter(({ status }) => status === "rejected")).toHaveLength(1);

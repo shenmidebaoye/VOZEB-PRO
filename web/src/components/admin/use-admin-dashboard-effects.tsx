@@ -98,45 +98,4 @@ export function useAdminDashboardEffects({ state, data, settingsActions }: { sta
     useEffect(() => {
         setActiveSection(initialSection);
     }, [initialSection]);
-
-    useEffect(() => {
-        if (activeSection !== "prompts") return;
-        void loadPrompts(promptPage, debouncedPromptSearch);
-    }, [activeSection, promptPage, debouncedPromptSearch]);
-
-    useEffect(() => {
-        if (activeSection !== "users") return;
-        void loadUsers(userPage, debouncedUserSearch);
-    }, [activeSection, userPage, debouncedUserSearch]);
-
-    useEffect(() => {
-        if (activeSection !== "overview") return;
-        void loadGenerationAssetStats();
-        void loadOperationsSummary();
-    }, [activeSection]);
-
-    useEffect(() => {
-        if (activeSection !== "logs") return;
-        void loadGenerationLogs();
-    }, [activeSection, generationLogPage, generationLogSearch, generationLogKind, generationLogSource, generationLogStatus, generationLogUserId, generationLogStart, generationLogEnd]);
-
-    useEffect(() => {
-        if (activeSection !== "cdk") return;
-        void loadCdkCodes();
-    }, [activeSection, cdkPage, debouncedCdkSearch, cdkFilter]);
-
-    useEffect(() => {
-        if (activeSection !== "announcements") return;
-        void loadAnnouncements();
-    }, [activeSection]);
-
-    useEffect(() => {
-        if (activeSection !== "payments") return;
-        void loadPaymentConfig();
-    }, [activeSection]);
-
-    useEffect(() => {
-        if (activeSection !== "wallet" && activeSection !== "overview") return;
-        void loadBillingSummary();
-    }, [activeSection]);
 }

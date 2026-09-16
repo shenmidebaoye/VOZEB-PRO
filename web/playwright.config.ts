@@ -67,7 +67,6 @@ export default defineConfig({
                 VOZEB_PRO_DATABASE_PROVIDER: databaseUrl ? "postgres" : "file",
                 VOZEB_PRO_DATA_DIR: path.join(process.cwd(), ".e2e-data"),
                 VOZEB_PRO_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-                VOZEB_PRO_INSTALL_TOKEN: "vozeb-pro-e2e-install-token-32chars",
                 VOZEB_PRO_MAINTENANCE_TOKEN: "vozeb-pro-e2e-maintenance-token-32chars",
                 VOZEB_PRO_WORKER_TOKEN: "vozeb-pro-e2e-worker-token-separate-32chars",
                 VOZEB_PRO_ALLOW_PRIVATE_UPSTREAMS: "1",

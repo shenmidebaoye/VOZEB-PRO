@@ -7,10 +7,8 @@ import { App, Form } from "antd";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import type { AdminBillingSummary } from "@/lib/admin-billing-types";
 import { emptyAdminGenerationOverviewSummary } from "@/lib/admin-generation-overview";
 import type { AuthSettings, CreatedCdkCode, PublicAnnouncement, PublicCdkCode, PublicUser, PublicUserSummary, UserRole, UserStatus } from "@/lib/auth/store";
-import type { PaymentConfigSummary } from "@/lib/payment-config-types";
 import type { AdminSetupSummary } from "@/lib/server/admin-setup-status";
 import type { GenerationAssetStats, StoredGenerationLog } from "@/lib/server/generation-log-store";
 import type { Prompt } from "@/services/api/prompts";
@@ -52,7 +50,7 @@ export const USER_PAGE_SIZE = 20;
 export const CDK_PAGE_SIZE = 20;
 export const GENERATION_LOG_PAGE_SIZE = 20;
 
-export function useAdminDashboardState({ initialUsers, initialUserSummary, initialSettings, initialPromptCount, currentUser, initialSection = "overview", setupSummary, headerActions }: AdminDashboardProps) {
+export function useAdminDashboardState({ initialUsers, initialUserSummary, initialSettings, initialPromptCount, currentUser, initialSection = "channels", setupSummary, headerActions }: AdminDashboardProps) {
     const { message } = App.useApp();
     const [promptForm] = Form.useForm<PromptFormValue>();
     const [userForm] = Form.useForm<UserEditorValue>();
@@ -113,8 +111,8 @@ export function useAdminDashboardState({ initialUsers, initialUserSummary, initi
     const [generationLogsLoading, setGenerationLogsLoading] = useState(false);
     const [bulkDeletingGenerationLogs, setBulkDeletingGenerationLogs] = useState(false);
     const [viewingGenerationLog, setViewingGenerationLog] = useState<StoredGenerationLog | null>(null);
-    const [paymentConfig, setPaymentConfig] = useState<PaymentConfigSummary | null>(null);
-    const [billingSummary, setBillingSummary] = useState<AdminBillingSummary | null>(null);
+    const [paymentConfig, setPaymentConfig] = useState<Record<string, unknown> | null>(null);
+    const [billingSummary, setBillingSummary] = useState<Record<string, unknown> | null>(null);
     const [billingSummaryLoading, setBillingSummaryLoading] = useState(false);
     const [viewingCdkCode, setViewingCdkCode] = useState<PublicCdkCode | null>(null);
     const [cdkCodes, setCdkCodes] = useState<PublicCdkCode[]>([]);

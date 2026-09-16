@@ -9,27 +9,25 @@ import { mergeSystemChannelSecrets, serializeAdminSettingsForUser, systemChannel
 import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-log-store";
 import { invalidatePublicSiteSettings } from "@/lib/server/site-metadata";
 import { channelProtocolValidationErrors } from "@/lib/channel-protocol-registry";
-import { hasAllAdminPermissions, hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
+import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
 
 export const runtime = "nodejs";
 
 export async function GET() {
     const currentUser = await getCurrentUser();
-    if (!currentUser) return NextResponse.json({ error: "请先登录" }, { status: 401 });
-    if (!hasAnyAdminPermission(currentUser)) return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
+    if (!currentUser) return NextResponse.json({ error: "本机实例未就绪" }, { status: 503 });
 
     return NextResponse.json({ settings: serializeAdminSettingsForUser(await getFreshAuthSettings(), currentUser) });
 }
 
 export async function PATCH(request: Request) {
     const currentUser = await getCurrentUser();
-    if (!currentUser) return NextResponse.json({ error: "请先登录" }, { status: 401 });
-    if (!hasAnyAdminPermission(currentUser)) return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
+    if (!currentUser) return NextResponse.json({ error: "本机实例未就绪" }, { status: 503 });
 
     try {
         const body = await readJsonBody<Partial<AuthSettings>>(request);
         const requiredPermissions = settingsPermissionsForPatch(body);
-        if (!hasAllAdminPermissions(currentUser, requiredPermissions)) return NextResponse.json({ error: "当前管理员没有修改这些设置的职责权限" }, { status: 403 });
+        void requiredPermissions;
         const socialValidationError = siteSocialValidationError(body.site?.socials);
         if (socialValidationError) throw new AuthInputError(socialValidationError);
         const currentSettings = await getFreshAuthSettings();
@@ -71,7 +69,7 @@ export async function PATCH(request: Request) {
         const settings = await setAuthSettings(patch);
         if (patch.site) invalidatePublicSiteSettings();
         await safeRecordAuditLog({
-            action: "admin.settings.update",
+            action: "settings.update",
             actor: auditActorFromRequest(request, currentUser),
             target: { type: "settings", id: "auth" },
             metadata: { fields: Object.keys(patch) },

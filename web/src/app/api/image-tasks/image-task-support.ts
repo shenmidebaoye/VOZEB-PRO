@@ -14,7 +14,7 @@ import { generationModelId, toSystemGenerationChannel } from "@/lib/server/gener
 import { finishGenerationAttempt, startGenerationAttempt } from "@/lib/server/generation-attempt";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { resolveChannelModelConfig } from "@/lib/channel-protocol-registry";
-import { assertReferenceCapabilities } from "@/lib/server/provider-task-config";
+import { assertReferenceCapabilities, isProviderBusinessError, readProviderError } from "@/lib/server/provider-task-config";
 import { countActiveImageTasksForUser, createImageTask, getImageTask, touchImageTask, transitionImageTask, type ImageTask, type ImageTaskConfig, type ImageTaskReference, updateImageTask } from "@/lib/server/image-task-store";
 import { isGenerationSource, recordGenerationLog } from "@/lib/server/generation-log-store";
 import { writeReferenceImageDataUrl } from "@/lib/server/reference-asset-store";
@@ -324,10 +324,10 @@ export function withImageOutputInstructions(config: ImageTaskConfig, prompt: str
 }
 
 export async function parseImagePayloadOrPoll(config: ImageTaskConfig, payload: ImageApiResponse, mediaBaseUrl: string, cookie: string, pollBaseUrl = mediaBaseUrl, singleStep = false): Promise<ImageTaskResult> {
-    const payloadError = readImagePayloadError(payload);
-    if (payloadError) throw new ImageUpstreamTerminalError(payloadError);
     const images = findImageResults(payload, mediaBaseUrl, config);
     if (images.length) return imageTaskResultFromMedia(images);
+    const payloadError = readImagePayloadError(payload);
+    if (payloadError) throw new ImageUpstreamTerminalError(payloadError);
 
     const taskId = readImageTaskId(payload);
     if (!taskId) throw new GenerationSubmissionUncertainError("图片接口没有返回图片或任务 ID，创建结果待确认");
@@ -382,10 +382,11 @@ export async function parseImageQueryJson(response: Response): Promise<ImageApiR
 }
 
 export function parseImagePayloadCompat(payload: ImageApiResponse, baseUrl: string, config: ImageTaskConfig): ImageTaskResult | null {
+    const images = findImageResults(payload, baseUrl, config);
+    if (images.length) return imageTaskResultFromMedia(images);
     const error = readImagePayloadError(payload);
     if (error) throw new ImageUpstreamTerminalError(error);
-    const images = findImageResults(payload, baseUrl, config);
-    return images.length ? imageTaskResultFromMedia(images) : null;
+    return null;
 }
 
 export function findImageResult(value: unknown, baseUrl: string, config: ImageTaskConfig, depth = 0): ImageTaskResult | null {
@@ -467,10 +468,11 @@ export function isLikelyImageUrl(value: string) {
 }
 
 export function readImagePayloadError(payload: ImageApiResponse) {
-    if (typeof payload.code === "number" && payload.code !== 0) return payload.msg || "图片生成失败";
-    if (payload.error?.message) return payload.error.message;
-    const status = (payload.status || "").toLowerCase();
+    const openAiError = payload.error?.message?.trim();
+    if (openAiError) return openAiError;
+    const status = String(payload.status || "").toLowerCase();
     if (["failed", "failure", "error", "cancelled", "canceled", "expired"].includes(status)) return payload.msg || "图片生成失败";
+    if (isProviderBusinessError(payload)) return readProviderError(payload) || "图片生成失败";
     return "";
 }
 

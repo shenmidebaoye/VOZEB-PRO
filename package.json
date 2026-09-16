@@ -4,6 +4,8 @@
     "private": true,
     "packageManager": "pnpm@11.9.0",
     "scripts": {
+        "start": "pnpm --dir web start:local",
+        "dev": "pnpm --dir web start:local",
         "licenses:generate": "node scripts/generate-third-party-licenses.mjs",
         "licenses:check": "node scripts/generate-third-party-licenses.mjs --check"
     }
