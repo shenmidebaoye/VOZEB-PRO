@@ -4,7 +4,7 @@ import { Button, Checkbox, Popconfirm, Tag } from "antd";
 import { Eye, Film, Image as ImageIcon, Trash2 } from "lucide-react";
 
 import { browserReadableMediaUrl } from "@/lib/browser-media-url";
-import { AdminAccountId } from "@/components/admin/admin-user-identity";
+import { AdminAccountId } from "@/components/admin/admin-dashboard-elements";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import type { StoredGenerationLog } from "@/lib/server/generation-log-store";
 

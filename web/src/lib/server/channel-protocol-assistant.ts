@@ -1,10 +1,10 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { parseDeterministicProtocolDraft, protocolDraftFromUnknown, redactProtocolSecrets, type ChannelProtocolDraft } from "@/lib/channel-protocol-draft";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { TEXT_MODEL_REQUEST_TIMEOUT_MS } from "@/lib/server/model-request-policy";
 import { strictJsonObjectText } from "@/lib/server/structured-model-output";
-import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
+import { systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { safeProtocolDocumentationUrl } from "@/lib/channel-protocol-security";
 import { extractProtocolHtmlDocument, ProtocolDocumentFetchError, readProtocolDocumentSource } from "@/lib/server/protocol-document-source";
 
@@ -63,10 +63,13 @@ async function assistProtocolDraftWithTextModel(input: { requestUrl: string; coo
     const origin = resolveInternalOrigin(new URL(input.requestUrl).origin);
     const prompt = protocolAssistantPrompt(source, fallback);
     for (const candidate of candidates) {
+        const idempotencyKey = systemAiIdempotencyKey("protocol-draft", input.userId, candidate.channel.id, candidate.upstreamModel, source.slice(0, 4_000));
         const headers = {
             "Content-Type": "application/json",
             cookie: input.cookie,
-            ...systemAiBillingHeaders(logicalModel, systemAiIdempotencyKey("protocol-draft", input.userId, candidate.channel.id, candidate.upstreamModel, source.slice(0, 4_000)), candidate.upstreamModel),
+            "Idempotency-Key": idempotencyKey,
+            "X-Client-Request-Id": idempotencyKey,
+            ...systemAiBillingHeaders(logicalModel, idempotencyKey, candidate.upstreamModel),
         };
         const response = await fetchInternalApi(`${origin}/api/ai/system/${encodeURIComponent(candidate.channel.id)}/chat/completions`, {
             method: "POST",
@@ -95,8 +98,6 @@ async function assistProtocolDraftWithTextModel(input: { requestUrl: string; coo
             }
         }
         if (draft) return draft;
-        const billing = readSystemAiBilling(response.headers);
-        if (hasSystemAiCharge(billing)) await refundUserPoints(input.userId, logicalModel, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
     }
     return null;
 }

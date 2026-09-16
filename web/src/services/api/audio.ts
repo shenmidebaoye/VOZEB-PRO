@@ -1,7 +1,6 @@
 import { audioMimeType, normalizeAudioFormatValue, normalizeAudioSpeedValue, normalizeAudioVoiceValue } from "@/lib/audio-generation";
 import { GenerationTaskNeedsReviewError, GenerationTaskTerminalError, type GenerationTaskExecutionState } from "@/services/api/generation-task-state";
 import { readStoredMediaFile, uploadGeneratedMediaFile, type UploadedFile } from "@/services/file-storage";
-import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 import { resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 
@@ -59,7 +58,6 @@ export async function createAudioGenerationTask(config: AiConfig, prompt: string
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, requestConfig.apiSource);
     if (!response.ok) throw new Error(await readFetchError(response, "创建音频任务失败"));
     const payload = (await response.json()) as AudioTaskPayload;
     if (!payload.task?.id) throw new Error(payload.error || "创建音频任务失败");
@@ -74,7 +72,6 @@ export async function recoverAudioGenerationTask(taskId: string, options?: Pick<
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, "system");
     if (!response.ok) throw new Error(await readFetchError(response, "重新检查音频任务失败"));
     const payload = (await response.json()) as AudioTaskPayload;
     if (!payload.task) throw new Error(payload.error || "重新检查音频任务失败");
@@ -101,7 +98,6 @@ export async function waitForAudioGenerationTask(config: AiConfig, task: AudioGe
                 if (!audioResponse.ok) throw new Error(await readFetchError(audioResponse, "读取音频结果失败"));
                 const blob = await audioResponse.blob();
                 await assertAudioBlob(blob);
-                await refreshUserPointsIfSystem(requestConfig.apiSource);
                 const audio = blob.type.startsWith("audio/") ? blob : new Blob([blob], { type: audioMimeType(format) });
                 return { blob: audio, url: current.result.url, mimeType: current.result.mimeType || audio.type };
             }
@@ -112,7 +108,6 @@ export async function waitForAudioGenerationTask(config: AiConfig, task: AudioGe
         if (options?.signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
             await fetch(`/api/audio-tasks/${encodeURIComponent(task.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "cancelled" }) }).catch(() => undefined);
         }
-        await refreshUserPointsIfSystem(requestConfig.apiSource);
         throw error instanceof Error ? error : new Error("音频生成失败");
     }
 }
@@ -120,7 +115,6 @@ export async function waitForAudioGenerationTask(config: AiConfig, task: AudioGe
 export async function readAudioGenerationTask(taskId: string, apiSource: "system" | "custom" = "system", signal?: AbortSignal) {
     const response = await fetch(`/api/audio-tasks/${encodeURIComponent(taskId)}`, { cache: "no-store", signal });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, apiSource);
     if (!response.ok) throw new Error(await readFetchError(response, "读取音频任务失败"));
     const payload = (await response.json()) as AudioTaskPayload;
     if (!payload.task) throw new Error(payload.error || "音频任务不存在");

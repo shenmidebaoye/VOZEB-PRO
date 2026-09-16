@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     });
 
     const users = await getPublicUsersByIds(result.items.map((item) => item.userId));
-    const accountIdByUserId = new Map(users.map((user) => [user.id, user.accountId]));
+    const accountIdByUserId = new Map(users.map((user) => [user.id, user.accountId || user.id]));
     return NextResponse.json({ logs: result.items.map((item) => ({ ...item, accountId: accountIdByUserId.get(item.userId) })), total: result.total, page: result.page, pageSize: result.pageSize });
 }
 

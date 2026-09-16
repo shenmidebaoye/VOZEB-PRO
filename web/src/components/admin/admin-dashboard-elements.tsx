@@ -1,13 +1,23 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AdminAccountId } from "@/components/admin/admin-user-identity";
+import { formatAccountId, parseAccountId } from "@/lib/account-id";
 import { createDefaultChannelAdvancedConfig } from "@/components/admin/admin-system-channel-editor";
 import { applyChannelProtocol } from "@/lib/channel-protocol-registry";
-import { formatCreditAmount } from "@/constant/credits";
-import type { CreatedCdkCode, PublicCdkCode, SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
 import { nanoid } from "nanoid";
 import { urlHostMatches, urlPathStartsWith } from "@/lib/url-host";
+
+export function AdminAccountId({ accountId, className = "" }: { accountId?: string; className?: string }) {
+    const displayAccountId = parseAccountId(accountId) ? formatAccountId(accountId) : undefined;
+    if (!displayAccountId) return null;
+    return (
+        <span className={`inline-flex min-w-0 items-baseline whitespace-nowrap text-xs leading-5 ${className}`} title={`ID：${displayAccountId}`} aria-label={`账号 ID ${displayAccountId}`}>
+            <span className="shrink-0 text-zinc-400 dark:text-zinc-500">ID：</span>
+            <span className="font-mono font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">{displayAccountId}</span>
+        </span>
+    );
+}
 
 export const settingsStatusToneClass = {
     cyan: "bg-cyan-50 text-cyan-700 ring-cyan-100 dark:bg-cyan-950/45 dark:text-cyan-200 dark:ring-cyan-900/40",
@@ -126,94 +136,6 @@ export function modelNameFromOption(value: string) {
     if (!normalized) return "";
     const parts = normalized.split("::");
     return parts[parts.length - 1] || normalized;
-}
-
-export function isCdkExpired(code: PublicCdkCode) {
-    return Boolean(code.expiresAt && Date.parse(code.expiresAt) <= Date.now());
-}
-
-export function cdkStatusLabel(code: PublicCdkCode) {
-    if (!code.code) return "明文缺失";
-    if (isCdkExpired(code)) return "已过期";
-    if (code.status !== "active") return "不可用";
-    if (code.redeemedCount >= code.maxRedemptions) return "已兑完";
-    return code.redeemedCount > 0 ? "部分兑换" : "未兑换";
-}
-
-export function cdkStatusTone(code: PublicCdkCode) {
-    if (!code.code || isCdkExpired(code) || code.status !== "active") return "default";
-    if (code.redeemedCount >= code.maxRedemptions) return "green";
-    return code.redeemedCount > 0 ? "blue" : "gold";
-}
-
-export function formatCreatedCdkExport(codes: CreatedCdkCode[], siteTitle: string) {
-    const lines = [
-        `${siteTitle} CDK 导出`,
-        `导出时间：${new Date().toLocaleString("zh-CN", { hour12: false })}`,
-        `数量：${codes.length}`,
-        "",
-        ...codes.map((code, index) =>
-            [
-                `${index + 1}. ${code.code}`,
-                `积分：${formatCreditAmount(code.points)}`,
-                `可兑换次数：${code.maxRedemptions}`,
-                `有效期：${code.expiresAt ? new Date(code.expiresAt).toLocaleString("zh-CN", { hour12: false }) : "长期有效"}`,
-                code.note ? `备注：${code.note}` : "",
-            ]
-                .filter(Boolean)
-                .join(" | "),
-        ),
-        "",
-        "说明：仅导出本次生成且可复制的明文 CDK。",
-    ];
-    return lines.join("\n");
-}
-
-export function downloadTextFile(filename: string, text: string) {
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-}
-
-export function CdkRedemptionDetail({ code }: { code: PublicCdkCode }) {
-    const redemptions = [...code.redemptions].sort((a, b) => Date.parse(b.redeemedAt) - Date.parse(a.redeemedAt));
-    const visibleRedemptions = redemptions.slice(0, 20);
-
-    return (
-        <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/60">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">兑换明细</div>
-                <div className="text-xs text-stone-500 dark:text-stone-400">
-                    共 {redemptions.length} 条{redemptions.length > visibleRedemptions.length ? "，展示最近 20 条" : ""}
-                </div>
-            </div>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {visibleRedemptions.map((item) => (
-                    <div key={`${item.userId}-${item.redeemedAt}`} className="min-w-0 rounded-md border border-stone-200 bg-white p-3 dark:border-stone-800 dark:bg-stone-950">
-                        <div className="truncate text-sm font-medium text-stone-900 dark:text-stone-100">
-                            {item.displayName}
-                            <span className="ml-1 font-normal text-stone-500 dark:text-stone-400">@{item.username}</span>
-                        </div>
-                        <AdminAccountId accountId={item.accountId} className="mt-0.5" />
-                        <div className="mt-1 text-xs text-stone-500 dark:text-stone-400">{new Date(item.redeemedAt).toLocaleString("zh-CN")}</div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-export function splitTags(value?: string) {
-    return (value || "")
-        .split(/[,，\n]/)
-        .map((tag) => tag.trim())
-        .filter(Boolean);
 }
 
 export function clampInteger(value: unknown, min: number, max: number, fallback: number) {

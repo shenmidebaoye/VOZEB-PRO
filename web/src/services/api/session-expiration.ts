@@ -7,7 +7,7 @@ let redirecting = false;
 
 export class ClientSessionExpiredError extends Error {
     constructor() {
-        super("登录状态已失效，请重新登录");
+        super("本机实例未就绪，请完成安装或刷新页面");
         this.name = "ClientSessionExpiredError";
     }
 }
@@ -21,9 +21,9 @@ export function throwIfClientSessionExpired(response: Response) {
 export function expireClientSession() {
     useUserStore.getState().clearSession();
     resetPublicSession();
-    if (typeof window === "undefined" || redirecting || window.location.pathname === "/login") return;
+    if (typeof window === "undefined" || redirecting) return;
     redirecting = true;
-    window.location.assign("/login");
+    window.location.assign("/");
 }
 
 export async function stopIfClientSessionExpired() {

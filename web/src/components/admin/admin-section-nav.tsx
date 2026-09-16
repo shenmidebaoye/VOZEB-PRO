@@ -4,35 +4,18 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-    Activity,
-    BadgePercent,
-    BookOpen,
-    CircleDollarSign,
     Cloud,
     ChevronDown,
-    CreditCard,
-    Database,
     DatabaseBackup,
     ExternalLink,
-    Film,
-    Gift,
-    GalleryVerticalEnd,
     Globe2,
     HardDrive,
-    KeyRound,
-    Megaphone,
     Menu,
     PanelLeftClose,
     PanelLeftOpen,
     PlugZap,
-    ReceiptText,
     SlidersHorizontal,
     Sparkles,
-    TicketPercent,
-    UserPlus,
-    UsersRound,
-    UserRoundX,
-    WalletCards,
     X,
 } from "lucide-react";
 import { canAccessAdminSection, type AdminSectionKey } from "@/components/admin/admin-sections";
@@ -111,7 +94,7 @@ export function AdminSectionNav({
                     <button
                         type="button"
                         className="admin-section-nav-toggle flex size-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
-                        aria-label={mobileOpen ? "收起后台侧边栏" : "展开后台侧边栏"}
+                        aria-label={mobileOpen ? "收起设置侧边栏" : "展开设置侧边栏"}
                         aria-expanded={mobileOpen}
                         onClick={onMobileToggle}
                     >
@@ -121,7 +104,7 @@ export function AdminSectionNav({
                         <SiteLogo logoUrl={site.logoUrl} className="size-7" />
                         <span className="min-w-0">
                             <span className="block truncate text-sm font-semibold">{site.title}</span>
-                            <span className="block truncate text-[10px] text-zinc-400 dark:text-zinc-500">管理控制台</span>
+                            <span className="block truncate text-[10px] text-zinc-400 dark:text-zinc-500">设置</span>
                         </span>
                     </Link>
                 </div>
@@ -130,13 +113,13 @@ export function AdminSectionNav({
                         <SiteLogo logoUrl={site.logoUrl} className="size-7" />
                         <span className="admin-section-brand-copy min-w-0">
                             <span className="block truncate text-sm font-semibold">{site.title}</span>
-                            <span className="block truncate text-[10px] text-zinc-400 dark:text-zinc-500">管理控制台</span>
+                            <span className="block truncate text-[10px] text-zinc-400 dark:text-zinc-500">设置</span>
                         </span>
                     </Link>
                     <button
                         type="button"
                         className="admin-section-desktop-toggle flex size-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
-                        aria-label={desktopCollapsed ? "展开后台侧边栏" : "收起后台侧边栏"}
+                        aria-label={desktopCollapsed ? "展开设置侧边栏" : "收起设置侧边栏"}
                         aria-expanded={!desktopCollapsed}
                         title={desktopCollapsed ? "展开侧边栏" : "收起侧边栏"}
                         onClick={onDesktopToggle}
@@ -177,7 +160,7 @@ export const adminSections: AdminSection[] = [
     { key: "channels", label: "模型渠道", description: "添加上游接口，维护模型目录、逻辑绑定和各能力默认模型。", shortDescription: "上游接口", icon: <PlugZap className="size-4" /> },
     { key: "skills", label: "Agent Skills", description: "管理 Agent 专业能力、触发词、来源和执行规则。", shortDescription: "专业能力", icon: <Sparkles className="size-4" /> },
     { key: "site", label: "站点资料", description: "管理网站标题、Logo、SEO 标题、描述和关键词。", shortDescription: "品牌与 SEO", icon: <Globe2 className="size-4" /> },
-    { key: "settings", label: "基础设置", description: "管理生成并发与数据维护。", shortDescription: "生成与维护", icon: <SlidersHorizontal className="size-4" /> },
+    { key: "settings", label: "基础设置", description: "管理本机生成并发、默认参数与数据维护。", shortDescription: "生成与维护", icon: <SlidersHorizontal className="size-4" /> },
     { key: "mediaStorage", label: "本地媒体", description: "查看服务器图片、视频和音频文件，管理临时期限与长期存储。", shortDescription: "文件与期限", icon: <HardDrive className="size-4" /> },
     { key: "externalStorage", label: "外部存储", description: "配置 S3 兼容存储，迁移本地媒体并管理外部对象。", shortDescription: "S3 与 OSS", icon: <Cloud className="size-4" /> },
     { key: "backup", label: "数据备份", description: "导出和恢复脱敏业务数据，并区分整库与媒体备份边界。", shortDescription: "导入与恢复", icon: <DatabaseBackup className="size-4" /> },

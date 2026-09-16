@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminMediaTypeTabs } from "@/components/admin/admin-media-type-tabs";
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
-import { AdminAccountId, AdminUserSearchSelect } from "@/components/admin/admin-user-identity";
+import { AdminAccountId } from "@/components/admin/admin-dashboard-elements";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { managedMediaTypeLabel, mediaSourceGroupOptions, mediaSourceLabel } from "@/lib/media-management-contract";
 import type { ExternalStorageFile, ExternalStorageFilesPayload, ObjectStorageMigrationResult, ObjectStorageSettings, ObjectStorageSettingsUpdate } from "@/lib/object-storage-contract";
@@ -407,13 +407,16 @@ export function AdminExternalStorage() {
                                 />
                             </div>
                             <div className="col-span-2 min-w-0 xl:col-span-1">
-                                <AdminUserSearchSelect
-                                    value={ownerUserId || undefined}
-                                    placeholder="按用户或 ID 筛选"
-                                    onChange={(value) => {
+                                <Input
+                                    allowClear
+                                    placeholder="按用户 ID 筛选"
+                                    aria-label="按用户 ID 筛选"
+                                    value={ownerUserId}
+                                    disabled={!settings?.bucket}
+                                    onChange={(event) => {
                                         setCursor("");
                                         setCursorHistory([]);
-                                        setOwnerUserId(value || "");
+                                        setOwnerUserId(event.target.value.trim());
                                     }}
                                 />
                             </div>

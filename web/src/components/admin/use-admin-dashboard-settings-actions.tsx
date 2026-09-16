@@ -1,48 +1,20 @@
 "use client";
 
-import type { AdminSectionKey } from "@/components/admin/admin-sections";
 import { createDefaultChannelAdvancedConfig } from "@/components/admin/admin-system-channel-editor";
-import { toNumberOrOne, toNumberOrZero, uniqueList } from "@/components/admin/admin-values";
+import { uniqueList } from "@/components/admin/admin-values";
 import { channelProtocolDefinition, channelSupportsModelCatalog, normalizeStrictProtocolModelConfig } from "@/lib/channel-protocol-registry";
 import { nanoid } from "nanoid";
-import type { ReactNode } from "react";
 
-import type { AuthSettings, PublicUser, PublicUserSummary, SiteFriendLink, SiteSocialKey, SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
+import type { AuthSettings, SiteFriendLink, SiteSocialKey, SystemChannelAdvancedConfig, SystemModelChannel } from "@/lib/auth/store";
 import { buildGlobalAiOpcSelection } from "@/lib/globalaiopc-catalog";
 import { normalizeDefaultModelsConfig, synchronizeLogicalModelsWithChannels } from "@/lib/model-routing-config";
-import type { AdminSetupSummary } from "@/lib/server/admin-setup-status";
 import { clampInteger, createSystemChannel, requestAdminModels, type AdminModelsResult } from "./admin-dashboard-elements";
 import { removeChannelFromWorkspace } from "./channels/admin-channel-workspace-model";
-
-export type AdminDashboardProps = {
-    initialUsers: PublicUser[];
-    initialUserSummary: PublicUserSummary;
-    initialSettings: AuthSettings;
-    initialPromptCount: number;
-    currentUser: PublicUser;
-    initialSection?: AdminSectionKey;
-    setupSummary?: AdminSetupSummary;
-    headerActions?: ReactNode;
-};
-export type PromptFormValue = {
-    title: string;
-    prompt: string;
-    category?: string;
-    tags?: string;
-    coverUrl?: string;
-    preview?: string;
-};
-
-export const PROMPT_PAGE_SIZE = 20;
-export const PROMPT_SEARCH_DEBOUNCE_MS = 300;
-export const CDK_PAGE_SIZE = 20;
-export const GENERATION_LOG_PAGE_SIZE = 20;
-
 import type { AdminDashboardDataActions } from "./use-admin-dashboard-data-actions";
 import type { AdminDashboardState } from "./use-admin-dashboard-state";
 
 export function useAdminDashboardSettingsActions({ state, data }: { state: AdminDashboardState; data: AdminDashboardDataActions }) {
-    const { message, setSettings, getSettings, setMailTestLoading, mailTestTo, setFetchingModelId, customPointModel, setCustomPointModel } = state;
+    const { message, setSettings, getSettings, setFetchingModelId } = state;
     const { saveSettings } = data;
 
     const updateSite = (update: (site: AuthSettings["site"]) => AuthSettings["site"]) => {
@@ -78,10 +50,6 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
         return saveSettings((current) => removeChannelFromWorkspace(current, id), "渠道已删除");
     };
 
-    const updateFreeDailyPoints = (value: number | null) => {
-        setSettings((current) => ({ ...current, freeDailyPoints: toNumberOrZero(value) }));
-    };
-
     const updateGenerationConcurrency = (key: keyof AuthSettings["generationConcurrency"], value: number | null) => {
         setSettings((current) => ({
             ...current,
@@ -102,16 +70,6 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
         }));
     };
 
-    const updateGenerationCostControl = (key: keyof AuthSettings["generationCostControl"], value: number | null) => {
-        setSettings((current) => ({
-            ...current,
-            generationCostControl: {
-                ...current.generationCostControl,
-                [key]: toNumberOrZero(value),
-            },
-        }));
-    };
-
     const updateDataLifecycle = (key: keyof AuthSettings["dataLifecycle"], value: boolean | number) => {
         const current = getSettings();
         const next = {
@@ -122,77 +80,6 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
             },
         };
         setSettings(next);
-    };
-
-    const updateModelPointCost = (model: string, value: number | null) => {
-        setSettings((current) => ({ ...current, modelPointCosts: { ...current.modelPointCosts, [model]: toNumberOrOne(value) } }));
-    };
-
-    const updateGenerationPointMultiplier = (group: keyof AuthSettings["generationPointMultipliers"], key: string, value: number | null) => {
-        setSettings((current) => ({
-            ...current,
-            generationPointMultipliers: {
-                ...current.generationPointMultipliers,
-                [group]: {
-                    ...current.generationPointMultipliers[group],
-                    [key]: toNumberOrOne(value),
-                },
-            },
-        }));
-    };
-
-    const deleteGenerationPointMultiplier = (group: keyof AuthSettings["generationPointMultipliers"], key: string) => {
-        setSettings((current) => {
-            const nextGroup = { ...current.generationPointMultipliers[group] };
-            delete nextGroup[key];
-            return {
-                ...current,
-                generationPointMultipliers: {
-                    ...current.generationPointMultipliers,
-                    [group]: nextGroup,
-                },
-            };
-        });
-    };
-
-    const addCustomPointModel = () => {
-        const model = customPointModel.trim();
-        if (!model) {
-            message.warning("请输入模型名称");
-            return;
-        }
-        updateModelPointCost(model, getSettings().modelPointCosts[model] ?? 1);
-        setCustomPointModel("");
-    };
-
-    const deleteModelPointCost = (model: string) => {
-        setSettings((current) => {
-            const next = { ...current.modelPointCosts };
-            delete next[model];
-            return { ...current, modelPointCosts: next };
-        });
-    };
-
-    const updateMailSetting = (key: keyof AuthSettings["mail"], value: string | number | boolean) => {
-        setSettings((current) => ({ ...current, mail: { ...current.mail, [key]: value } }));
-    };
-
-    const testMailSettings = async () => {
-        setMailTestLoading(true);
-        try {
-            const response = await fetch("/api/admin/mail/test", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ mail: getSettings().mail, to: mailTestTo }),
-            });
-            const payload = (await response.json()) as { error?: string };
-            if (!response.ok) throw new Error(payload.error || "测试邮件发送失败");
-            message.success("测试邮件已发送，请检查收件箱");
-        } catch (error) {
-            message.error(error instanceof Error ? error.message : "测试邮件发送失败");
-        } finally {
-            setMailTestLoading(false);
-        }
     };
 
     const updateSiteSetting = <K extends keyof Omit<AuthSettings["site"], "socials">>(key: K, value: AuthSettings["site"][K]) => {
@@ -315,18 +202,9 @@ export function useAdminDashboardSettingsActions({ state, data }: { state: Admin
         updateChannel,
         addChannel,
         deleteChannel,
-        updateFreeDailyPoints,
         updateGenerationConcurrency,
         updateGenerationDefaults,
-        updateGenerationCostControl,
         updateDataLifecycle,
-        updateModelPointCost,
-        updateGenerationPointMultiplier,
-        deleteGenerationPointMultiplier,
-        addCustomPointModel,
-        deleteModelPointCost,
-        updateMailSetting,
-        testMailSettings,
         updateSiteSetting,
         getLatestSiteSettings,
         getLatestSettings,

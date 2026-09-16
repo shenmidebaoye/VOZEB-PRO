@@ -47,7 +47,7 @@ async function serveReferenceAsset(request: Request, context: RouteContext) {
     registration ||= await getLocalMediaRegistration(storagePath);
     if (!registration) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
     if (isLocalMediaRegistrationExpired(registration)) return NextResponse.json({ error: "媒体文件不存在或已过期" }, { status: 404 });
-    if (currentUser && currentUser.role !== "admin" && registration.ownerUserId !== currentUser.id) return NextResponse.json({ code: 404, data: null, msg: "媒体文件不存在" }, { status: 404 });
+    if (currentUser && registration.ownerUserId !== currentUser.id) return NextResponse.json({ code: 404, data: null, msg: "媒体文件不存在" }, { status: 404 });
     if (request.method === "HEAD" && registration.storageProvider === "object") {
         return createMediaHeadResponse(registration.mimeType, registration.bytes, {
             "Cache-Control": storagePath.startsWith("permanent/") ? "private, max-age=86400" : "private, max-age=300",

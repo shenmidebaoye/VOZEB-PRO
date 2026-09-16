@@ -1,9 +1,9 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { CREATE_AGENT_PROMPT_MAX_LENGTH } from "@/lib/create-agent-prompt";
 import type { CreativeGenerationMode } from "@/lib/creative-runtime-contract";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
-import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
+import { systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
 import { resolveSiteTitle } from "@/lib/site-brand";
 
@@ -44,11 +44,10 @@ export async function optimizeCreativePrompt(input: { origin: string; cookie: st
                     "X-Client-Request-Id": idempotencyKey,
                     ...systemAiBillingHeaders(model, idempotencyKey, candidate.upstreamModel),
                 },
-                onInvalidResponse: (headers) => refundInvalidResponse(input.userId, model, headers),
+                onInvalidResponse: undefined,
             });
             const optimizedPrompt = parseOptimizedPrompt(call.arguments);
             if (!optimizedPrompt) {
-                await refundInvalidResponse(input.userId, model, call.headers);
                 throw new PromptOptimizationError("默认文本模型没有返回有效提示词");
             }
             return optimizedPrompt;
@@ -72,11 +71,6 @@ function parseOptimizedPrompt(value: string) {
     } catch {
         return "";
     }
-}
-
-async function refundInvalidResponse(userId: string, model: string, headers: Headers) {
-    const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
 }
 
 const promptOptimizationTool = {

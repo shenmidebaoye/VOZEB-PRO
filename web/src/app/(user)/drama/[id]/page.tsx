@@ -8,7 +8,6 @@ import { useParams, useRouter } from "next/navigation";
 
 import { createImageGenerationTask, waitForImageGenerationTask } from "@/services/api/image";
 import { createServerVideoGenerationTask } from "@/services/api/video";
-import { syncUserPointsFromHeaders } from "@/services/api/points";
 import { compileDramaShotPrompts } from "@/lib/drama-prompt-compiler";
 import { useEffectiveConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
@@ -112,7 +111,6 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ requestId: `drama-content:${project.id}:${episode.id}:${nanoid()}`, phase: "content", script: episode.script, summary: project.summary, style: project.style, videoModel: config.videoModel || config.model }),
             });
-            syncUserPointsFromHeaders(response.headers, "system");
             const payload = (await response.json().catch(() => ({}))) as { data?: DramaContentAnalysis; msg?: string };
             if (!response.ok || !payload.data) throw new Error(payload.msg || "AI 剧本解析失败");
             await createVersion(project, "AI 内容解析前");
@@ -153,7 +151,6 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
                     shots: episode.shots,
                 }),
             });
-            syncUserPointsFromHeaders(response.headers, "system");
             const payload = (await response.json().catch(() => ({}))) as { data?: DramaVisualAnalysis; msg?: string };
             if (!response.ok || !payload.data) throw new Error(payload.msg || "AI 视觉方案生成失败");
             await createVersion(project, "视觉方案生成前");
@@ -307,7 +304,6 @@ function DramaProjectEditor({ project }: { project: DramaProject }) {
         if (!running) return;
         const timer = window.setInterval(async () => {
             const response = await fetch(`/api/video-tasks/${encodeURIComponent(running.generationTaskId!)}`, { cache: "no-store" });
-            syncUserPointsFromHeaders(response.headers, "system");
             const payload = (await response.json().catch(() => ({}))) as { task?: { status?: string; result?: { url?: string }; error?: string }; error?: string };
             if (!response.ok) return updateShot(project.id, episode.id, running.id, { generationStatus: "error", generationError: payload.error || "视频任务查询失败" });
             if (payload.task?.status === "success")

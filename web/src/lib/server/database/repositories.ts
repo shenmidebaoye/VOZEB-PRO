@@ -1,80 +1,18 @@
 import { postgresQuery, type QueryExecutor } from "@/lib/server/database/postgres";
 import { AuditLogsRepository } from "./audit-log-repository";
-import { WorkPublicationRepository } from "./work-publication-repository";
-import { WorkGovernanceRepository } from "./work-governance-repository";
-import { WorkCommunityRepository } from "./work-community-repository";
-import { AnnouncementsRepository, GenerationLogsRepository, PromptsRepository } from "./content-repository";
-import { CdkRepository, EmailCodesRepository, PointsRepository, SessionsRepository, UsersRepository } from "./user-repository";
-import type { AppSettingsRecord, EntitlementPlanRecord, JsonValue, SystemModelChannelRecord } from "./repository-shared";
+import { GenerationLogsRepository, PromptsRepository } from "./content-repository";
+import { UsersRepository } from "./user-repository";
+import type { AppSettingsRecord, SystemModelChannelRecord } from "./repository-shared";
 import { isoValue, jsonParam, jsonValue, numberValue, optionalJson, stringValue } from "./repository-shared";
 
-export type {
-    AuthenticatedUserRecord,
-    BillingOrderRecord,
-    BillingOrderStatus,
-    BillingProductRecord,
-    BillingReconciliationRowRecord,
-    BillingReconciliationRunRecord,
-    CouponRedemptionRecord,
-    CouponTemplateRecord,
-    JsonValue,
-    PaymentTransactionRecord,
-    PromotionCampaignRecord,
-    PromotionProductRecord,
-    ReferralCodeRecord,
-    ReferralProgramRecord,
-    ReferralRelationshipRecord,
-    ReferralRewardRecord,
-    ReferralRewardStatus,
-    ReferralRiskStatus,
-    PublishedWorkAssetRecord,
-    PublishedWorkAuthorDisplay,
-    PublishedWorkLifecycleStatus,
-    PublishedWorkModerationStatus,
-    PublishedWorkRecord,
-    PublishedWorkSourceType,
-    PublishedWorkSummaryRecord,
-    PublishedWorkVersionRecord,
-    PublishedWorkVisibility,
-    PublishedWorkCaseRecord,
-    PublishedWorkCaseStatus,
-    PublishedWorkCaseSummaryRecord,
-    PublishedWorkCaseType,
-    PublishedGalleryItemRecord,
-    PublishedWorkRankingRecord,
-    UserNotificationRecord,
-    UserNotificationType,
-    WorkCommunityRankingCursor,
-    WorkCommunityRankingWindow,
-    WorkCommunityRelationResultRecord,
-    WorkCommunitySummaryRecord,
-    UserFollowResultRecord,
-    FollowedUserRecord,
-    CommunityUserRecord,
-    LikedPublishedWorkRecord,
-    PublicCreatorProfileRecord,
-    PublicCreatorWorkCursor,
-    UserCommunitySummaryRecord,
-    UserCouponListItemRecord,
-    UserCouponRecord,
-    UserSummaryRecord,
-    UserPlanAssignmentRecord,
-} from "./repository-shared";
+export type { JsonValue } from "./repository-shared";
 
 export function createPostgresRepositories(executor: QueryExecutor = { query: postgresQuery }) {
     return {
         settings: new SettingsRepository(executor),
         users: new UsersRepository(executor),
-        sessions: new SessionsRepository(executor),
-        emailCodes: new EmailCodesRepository(executor),
-        points: new PointsRepository(executor),
-        cdk: new CdkRepository(executor),
-        announcements: new AnnouncementsRepository(executor),
         prompts: new PromptsRepository(executor),
         generationLogs: new GenerationLogsRepository(executor),
-        workPublications: new WorkPublicationRepository(executor),
-        workGovernance: new WorkGovernanceRepository(executor),
-        workCommunity: new WorkCommunityRepository(executor),
         auditLogs: new AuditLogsRepository(executor),
     };
 }
@@ -86,25 +24,11 @@ class SettingsRepository {
         await this.db.query("SELECT id FROM app_settings WHERE id = 'default' FOR UPDATE");
     }
 
-    async getPaymentConfig() {
-        const result = await this.db.query("SELECT payment_config FROM app_settings WHERE id = 'default'");
-        return result.rows[0] ? jsonValue(result.rows[0].payment_config) : {};
-    }
-
     async getSettings() {
-        const [settings, plans, channels] = await Promise.all([this.db.query("SELECT * FROM app_settings WHERE id = 'default'"), this.listEntitlementPlans(), this.listSystemModelChannels()]);
+        const [settings, channels] = await Promise.all([this.db.query("SELECT * FROM app_settings WHERE id = 'default'"), this.listSystemModelChannels()]);
         return {
             settings: settings.rows[0] ? mapSettings(settings.rows[0]) : undefined,
-            plans,
             channels,
-        };
-    }
-
-    async getWalletSettings() {
-        const [settings, plans] = await Promise.all([this.db.query("SELECT * FROM app_settings WHERE id = 'default'"), this.listEntitlementPlans()]);
-        return {
-            settings: settings.rows[0] ? mapSettings(settings.rows[0]) : undefined,
-            plans,
         };
     }
 
@@ -116,63 +40,15 @@ class SettingsRepository {
             assignments.push(`${column} = $${values.length}`);
         };
         if (input.site !== undefined) add("site", jsonParam(input.site));
-        if (input.registrationEnabled !== undefined) add("registration_enabled", input.registrationEnabled);
-        if (input.emailRegistrationEnabled !== undefined) add("email_registration_enabled", input.emailRegistrationEnabled);
-        if (input.freeDailyPointsEnabled !== undefined) add("free_daily_points_enabled", input.freeDailyPointsEnabled);
-        if (input.mail !== undefined) add("mail", jsonParam(input.mail));
-        if (input.allowUserApiConfig !== undefined) add("allow_user_api_config", input.allowUserApiConfig);
-        if (input.modelPointCosts !== undefined) add("model_point_costs", jsonParam(input.modelPointCosts));
-        if (input.generationPointMultipliers !== undefined) add("generation_point_multipliers", jsonParam(input.generationPointMultipliers));
-        if (input.generationCostControl !== undefined) add("generation_cost_control", jsonParam(input.generationCostControl));
         if (input.dataLifecycle !== undefined) add("data_lifecycle", jsonParam(input.dataLifecycle));
-        if (input.entitlementsEnabled !== undefined) add("entitlements_enabled", input.entitlementsEnabled);
-        if (input.defaultPlanId !== undefined) add("default_plan_id", input.defaultPlanId);
         if (input.generationConcurrency !== undefined) add("generation_concurrency", jsonParam(input.generationConcurrency));
         if (input.generationDefaults !== undefined) add("generation_defaults", jsonParam(input.generationDefaults));
-        if (input.paymentConfig !== undefined) add("payment_config", jsonParam(input.paymentConfig));
         if (input.logicalModels !== undefined) add("logical_models", jsonParam(input.logicalModels));
         if (input.defaultModels !== undefined) add("default_models", jsonParam(input.defaultModels));
         if (input.agentSkills !== undefined) add("agent_skills", jsonParam(input.agentSkills));
-        if (input.freeDailyPoints !== undefined) add("free_daily_points", input.freeDailyPoints);
         if (!assignments.length) throw new Error("Settings update requires at least one field");
         const row = await this.db.query(`UPDATE app_settings SET ${assignments.join(", ")} WHERE id = 'default' RETURNING *`, values);
         return mapSettings(row.rows[0]);
-    }
-
-    async listEntitlementPlans() {
-        const result = await this.db.query("SELECT * FROM entitlement_plans ORDER BY sort_order ASC, created_at ASC");
-        return result.rows.map(mapEntitlementPlan);
-    }
-
-    async upsertEntitlementPlan(plan: Omit<EntitlementPlanRecord, "createdAt" | "updatedAt">) {
-        const result = await this.db.query(
-            `
-            INSERT INTO entitlement_plans (id, name, enabled, daily_points, limits, features, sort_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (id) DO UPDATE SET
-                name = EXCLUDED.name,
-                enabled = EXCLUDED.enabled,
-                daily_points = EXCLUDED.daily_points,
-                limits = EXCLUDED.limits,
-                features = EXCLUDED.features,
-                sort_order = EXCLUDED.sort_order
-            RETURNING *
-            `,
-            [plan.id, plan.name, plan.enabled, plan.dailyPoints, jsonParam(plan.limits), jsonParam(plan.features), plan.sortOrder],
-        );
-        return mapEntitlementPlan(result.rows[0]);
-    }
-
-    async removeEntitlementPlansNotIn(ids: string[]) {
-        await this.db.query(
-            `DELETE FROM entitlement_plans AS plans
-             WHERE plans.id <> ALL($1::text[])
-               AND NOT EXISTS (SELECT 1 FROM users WHERE users.plan_id = plans.id)
-               AND NOT EXISTS (SELECT 1 FROM user_plan_assignments WHERE user_plan_assignments.plan_id = plans.id)`,
-            [ids],
-        );
-        const remaining = await this.db.query("SELECT id FROM entitlement_plans WHERE id <> ALL($1::text[]) ORDER BY id", [ids]);
-        return remaining.rows.map((row) => stringValue(row.id));
     }
 
     async listSystemModelChannels() {
@@ -217,38 +93,12 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRecord {
     return {
         id: "default",
         site: jsonValue(row.site),
-        registrationEnabled: row.registration_enabled !== false,
-        emailRegistrationEnabled: row.email_registration_enabled === true,
-        freeDailyPointsEnabled: row.free_daily_points_enabled !== false,
-        freeDailyPoints: numberValue(row.free_daily_points),
-        mail: jsonValue(row.mail),
-        allowUserApiConfig: row.allow_user_api_config === true,
-        modelPointCosts: jsonValue(row.model_point_costs),
-        generationPointMultipliers: jsonValue(row.generation_point_multipliers),
-        generationCostControl: jsonValue(row.generation_cost_control),
         dataLifecycle: jsonValue(row.data_lifecycle),
-        entitlementsEnabled: row.entitlements_enabled === true,
-        defaultPlanId: stringValue(row.default_plan_id),
         generationConcurrency: jsonValue(row.generation_concurrency),
         generationDefaults: jsonValue(row.generation_defaults),
-        paymentConfig: jsonValue(row.payment_config),
         logicalModels: jsonValue(row.logical_models),
         defaultModels: jsonValue(row.default_models),
         agentSkills: jsonValue(row.agent_skills),
-        createdAt: isoValue(row.created_at),
-        updatedAt: isoValue(row.updated_at),
-    };
-}
-
-function mapEntitlementPlan(row: Record<string, unknown>): EntitlementPlanRecord {
-    return {
-        id: stringValue(row.id),
-        name: stringValue(row.name),
-        enabled: row.enabled !== false,
-        dailyPoints: numberValue(row.daily_points),
-        limits: jsonValue(row.limits),
-        features: jsonValue(row.features),
-        sortOrder: numberValue(row.sort_order),
         createdAt: isoValue(row.created_at),
         updatedAt: isoValue(row.updated_at),
     };

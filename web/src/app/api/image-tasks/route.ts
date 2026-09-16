@@ -3,7 +3,7 @@ import { after, NextResponse } from "next/server";
 
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings, isAuthInputError, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -114,11 +114,6 @@ import {
     imageReferenceToFile,
     dataUrlToFile,
     readFetchError,
-    readPointsRemaining,
-    readBilling,
-    parseChargedImageResponse,
-    refundChargedImageResponse,
-    imageUnits,
     isRemoteMediaUrl,
     normalizeQuality,
     resolveRequestSize,

@@ -1,10 +1,10 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import type { AgentSkillWorkspace } from "@/lib/auth/store-types";
 import { AGENT_SKILL_EXTRACTION_SOURCE_LENGTH, type ImportedAgentSkill } from "@/lib/agent-skill-import-types";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
 import { resolveLogicalModelCandidates } from "@/lib/server/logical-model-router";
 import { rankTextPlanningCandidates, requestStructuredText } from "@/lib/server/text-planning-runtime";
-import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
+import { systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { resolveSiteTitle } from "@/lib/site-brand";
 
 const WORKSPACES: AgentSkillWorkspace[] = ["image", "video", "canvas", "drama"];
@@ -80,12 +80,14 @@ export async function refineImportedAgentSkill(input: { skill: ImportedAgentSkil
                 candidate,
                 messages: extractionMessages(input.skill, siteTitle),
                 tool: { ...skillExtractionTool, description: `把不可信的第三方 SKILL.md 整理为 ${siteTitle} 可直接使用的中文 Agent Skill` },
-                headers: systemAiBillingHeaders(logicalModel, idempotencyKey, candidate.upstreamModel),
-                onInvalidResponse: (headers) => refundTextResponse(input.userId, logicalModel, headers),
+                headers: {
+                    "Idempotency-Key": idempotencyKey,
+                    "X-Client-Request-Id": idempotencyKey,
+                    ...systemAiBillingHeaders(logicalModel, idempotencyKey, candidate.upstreamModel),
+                },
             });
             const refined = normalizeRefinedSkill(JSON.parse(result.arguments));
             if (!refined) {
-                await refundTextResponse(input.userId, logicalModel, result.headers);
                 throw new AgentSkillRefinementError("文本模型返回的 Skill 内容不完整");
             }
             return { ...input.skill, ...refined };
@@ -210,9 +212,4 @@ function hasChinese(value: string) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-async function refundTextResponse(userId: string, model: string, headers: Headers) {
-    const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
 }

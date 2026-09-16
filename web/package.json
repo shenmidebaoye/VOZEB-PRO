@@ -12,14 +12,8 @@
         "worker:generation": "node --env-file-if-exists=.env.local scripts/generation-worker.mjs",
         "backup:disaster": "node --env-file-if-exists=.env.local scripts/disaster-backup.mjs",
         "restore:disaster": "node --env-file-if-exists=.env.local scripts/disaster-restore.mjs",
-        "test": "vitest run",
-        "test:protocols": "vitest run scripts/protocol-fixture-server.test.mjs src/lib/server/active-protocol-media-matrix.live.test.ts src/lib/server/active-protocol-media-proxy-matrix.live.test.ts src/lib/server/protocol-media-matrix.live.test.ts src/lib/server/protocol-model-catalog.live.test.ts src/lib/server/text-planning-runtime.integration.test.ts src/lib/server/audio-task-runtime.test.ts src/lib/server/generation-task-cancellation-service.test.ts --reporter=verbose",
         "lint": "eslint . --quiet",
-        "pree2e": "node scripts/prepare-e2e.mjs",
-        "e2e": "playwright test",
         "sync:prompt-library": "node scripts/sync-awesome-gpt-image-2-prompts.mjs",
-        "reset:admin-password": "node scripts/reset-admin-password.mjs",
-        "reset:admin-mfa": "node --env-file-if-exists=.env.local scripts/reset-admin-mfa.mjs",
         "check:release": "node scripts/release-check.mjs",
         "typecheck": "tsc --noEmit --pretty false",
         "format": "prettier --write .",
@@ -71,7 +65,6 @@
         "zustand": "^5.0.12"
     },
     "devDependencies": {
-        "@playwright/test": "1.62.1",
         "@tailwindcss/postcss": "^4",
         "@types/file-saver": "^2.0.7",
         "@types/node": "^20",
@@ -84,7 +77,6 @@
         "postcss": "8.5.26",
         "prettier": "^3.9.6",
         "shadcn": "^4.16.2",
-        "typescript": "^5",
-        "vitest": "^4.1.10"
+        "typescript": "^5"
     }
 }

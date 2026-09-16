@@ -1,7 +1,6 @@
 import { resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 import type { AiTextMessage } from "@/types/ai";
 import { GenerationTaskNeedsReviewError, GenerationTaskTerminalError, type GenerationTaskExecutionState } from "@/services/api/generation-task-state";
-import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 
 type RequestOptions = { signal?: AbortSignal };
@@ -33,7 +32,6 @@ export async function createTextGenerationTask(config: AiConfig, messages: AiTex
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, "system");
     const payload = (await response.json().catch(() => ({}))) as TextTaskPayload;
     if (!response.ok || !payload.task) throw new Error(payload.error || "创建文本任务失败");
     return payload.task;
@@ -47,7 +45,6 @@ export async function recoverTextGenerationTask(taskId: string, options?: Reques
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, "system");
     const payload = (await response.json().catch(() => ({}))) as TextTaskPayload;
     if (!response.ok || !payload.task) throw new Error(payload.error || "重新检查文本任务失败");
     if (payload.task.needsReview) throw new GenerationTaskNeedsReviewError(payload.task.reviewReason);
@@ -62,15 +59,12 @@ export async function waitForTextGenerationTask(config: AiConfig, task: TextGene
         const response = await fetch(`/api/text-tasks/${encodeURIComponent(task.id)}`, { signal: options?.signal, cache: "no-store" });
         throwIfClientSessionExpired(response);
         const payload = (await response.json().catch(() => ({}))) as TextTaskPayload;
-        syncUserPointsFromHeaders(response.headers, resolveModelRequestConfig(config, task.model).apiSource);
         if (!response.ok || !payload.task) throw new Error(payload.error || "查询文本任务失败");
         if (payload.task.needsReview) throw new GenerationTaskNeedsReviewError(payload.task.reviewReason);
         if (payload.task.status === "success") {
-            await refreshUserPointsIfSystem(resolveModelRequestConfig(config, task.model).apiSource);
             return payload.task.result?.content || "";
         }
         if (payload.task.status === "error") {
-            await refreshUserPointsIfSystem(resolveModelRequestConfig(config, task.model).apiSource);
             throw new GenerationTaskTerminalError(payload.task.error || "文本生成失败");
         }
         await delay(TEXT_TASK_POLL_INTERVAL_MS, options?.signal);

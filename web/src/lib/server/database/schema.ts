@@ -1,7 +1,6 @@
-import { ALL_ADMIN_PERMISSIONS } from "@/lib/admin-permissions";
 import { POSTGRESQL_TRIGGER_SCHEMA_SQL } from "./schema-triggers";
 
-const FULL_ADMIN_PERMISSIONS_JSON = JSON.stringify(ALL_ADMIN_PERMISSIONS);
+const DEFAULT_AGENT_SKILLS_JSON = '[{"id":"ecommerce-image","name":"电商生图","description":"为商品主图、场景图和详情页视觉生成结构化方案。","instructions":"识别商品卖点、目标人群、平台与画幅。优先规划白底主图、核心卖点场景图、细节特写和详情页横幅；保持商品外观、材质、颜色、Logo 与包装一致。提示词必须写清主体、构图、光线、背景、镜头、商业质感、尺寸比例与禁止变形要求。","enabled":true,"keywords":["电商","商品","主图","详情页","淘宝","京东","亚马逊"]}]';
 
 export const POSTGRESQL_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -17,74 +16,87 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TABLE IF EXISTS check_ins;
+ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_role;
+ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_admin_permissions_array;
+ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_mfa_enabled_secret;
+ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_registration_consent_complete;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS email CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS role CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS admin_permissions CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS plan_id CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS points_balance CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS password_hash CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS mfa_secret_ciphertext CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS mfa_enabled_at CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS terms_version CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS terms_url CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS privacy_version CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS privacy_url CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS policy_accepted_at CASCADE;
+ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS last_login_at CASCADE;
+DROP INDEX IF EXISTS vozeb_pro_users_email_lower_idx;
+DROP INDEX IF EXISTS vozeb_pro_users_plan_id_idx;
 
-CREATE TABLE IF NOT EXISTS entitlement_plans (
-    id text PRIMARY KEY,
-    name text NOT NULL,
-    enabled boolean NOT NULL DEFAULT true,
-    daily_points numeric(18, 2) NOT NULL DEFAULT 0,
-    limits jsonb NOT NULL DEFAULT '{}'::jsonb,
-    features jsonb NOT NULL DEFAULT '[]'::jsonb,
-    sort_order integer NOT NULL DEFAULT 0,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
-);
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS registration_enabled CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS email_registration_enabled CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS free_daily_points_enabled CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS free_daily_points CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS mail CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS model_point_costs CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS generation_point_multipliers CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS generation_cost_control CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS entitlements_enabled CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS default_plan_id CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS payment_config CASCADE;
+ALTER TABLE IF EXISTS app_settings DROP COLUMN IF EXISTS allow_user_api_config CASCADE;
 
-INSERT INTO entitlement_plans (id, name, enabled, limits, features, sort_order)
-VALUES (
-    'free',
-    '免费版',
-    true,
-    '{"dailyPointSpend":0,"dailyApiCalls":0,"dailyImages":0,"dailyVideos":0,"dailyAudio":0,"dailyText":0}'::jsonb,
-    '["system-api","points-wallet"]'::jsonb,
-    0
-)
-ON CONFLICT (id) DO NOTHING;
-
-ALTER TABLE entitlement_plans ADD COLUMN IF NOT EXISTS daily_points numeric(18, 2) NOT NULL DEFAULT 0;
-
-INSERT INTO entitlement_plans (id, name, enabled, limits, features, sort_order)
-VALUES
-(
-    'creator',
-    '创作者版',
-    true,
-    '{"dailyPointSpend":800,"dailyApiCalls":0,"dailyImages":80,"dailyVideos":12,"dailyAudio":0,"dailyText":200}'::jsonb,
-    '["system-api","points-wallet","image-workbench","video-workbench","prompt-library"]'::jsonb,
-    10
-),
-(
-    'pro',
-    '专业版',
-    true,
-    '{"dailyPointSpend":4000,"dailyApiCalls":0,"dailyImages":300,"dailyVideos":50,"dailyAudio":0,"dailyText":800}'::jsonb,
-    '["system-api","points-wallet","image-workbench","video-workbench","prompt-library","priority-generation"]'::jsonb,
-    20
-)
-ON CONFLICT (id) DO NOTHING;
+DROP TABLE IF EXISTS vozeb_pro_check_ins CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_billing_reconciliation_rows CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_billing_reconciliation_runs CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_payment_provider_events CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_payment_transactions CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_billing_refund_jobs CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_coupon_redemptions CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_user_coupons CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_coupon_template_products CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_coupon_templates CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_promotion_products CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_promotion_campaigns CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_billing_orders CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_billing_products CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_referral_rewards CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_referral_relationships CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_referral_codes CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_referral_programs CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_published_work_likes CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_published_work_cases CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_published_work_assets CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_published_work_versions CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_published_works CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_user_follows CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_user_blocks CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_user_notifications CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_cdk_redemptions CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_cdk_codes CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_announcements CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_daily_plan_point_wallets CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_user_plan_assignments CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_point_records CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_quota_usage CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_email_codes CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_account_deletion_requests CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_sessions CASCADE;
+DROP TABLE IF EXISTS vozeb_pro_entitlement_plans CASCADE;
 
 CREATE TABLE IF NOT EXISTS app_settings (
     id text PRIMARY KEY DEFAULT 'default',
     site jsonb NOT NULL DEFAULT '{}'::jsonb,
-    registration_enabled boolean NOT NULL DEFAULT true,
-    email_registration_enabled boolean NOT NULL DEFAULT false,
-    free_daily_points_enabled boolean NOT NULL DEFAULT true,
-    free_daily_points numeric(18, 2) NOT NULL DEFAULT 0,
-    mail jsonb NOT NULL DEFAULT '{}'::jsonb,
-    allow_user_api_config boolean NOT NULL DEFAULT false,
-    model_point_costs jsonb NOT NULL DEFAULT '{}'::jsonb,
-    generation_point_multipliers jsonb NOT NULL DEFAULT '{}'::jsonb,
-    generation_cost_control jsonb NOT NULL DEFAULT '{}'::jsonb,
     data_lifecycle jsonb NOT NULL DEFAULT '{}'::jsonb,
-    entitlements_enabled boolean NOT NULL DEFAULT false,
-    default_plan_id text NOT NULL DEFAULT 'free' REFERENCES entitlement_plans(id),
     generation_concurrency jsonb NOT NULL DEFAULT '{}'::jsonb,
     generation_defaults jsonb NOT NULL DEFAULT '{}'::jsonb,
-    payment_config jsonb NOT NULL DEFAULT '{}'::jsonb,
     logical_models jsonb NOT NULL DEFAULT '[]'::jsonb,
     default_models jsonb NOT NULL DEFAULT '{}'::jsonb,
-    agent_skills jsonb NOT NULL DEFAULT '[{"id":"ecommerce-image","name":"电商生图","description":"为商品主图、场景图和详情页视觉生成结构化方案。","instructions":"识别商品卖点、目标人群、平台与画幅。优先规划白底主图、核心卖点场景图、细节特写和详情页横幅；保持商品外观、材质、颜色、Logo 与包装一致。提示词必须写清主体、构图、光线、背景、镜头、商业质感、尺寸比例与禁止变形要求。","enabled":true,"keywords":["电商","商品","主图","详情页","淘宝","京东","亚马逊"]}]'::jsonb,
+    agent_skills jsonb NOT NULL DEFAULT '${DEFAULT_AGENT_SKILLS_JSON}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT app_settings_singleton CHECK (id = 'default')
@@ -93,11 +105,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
 INSERT INTO app_settings (id)
 VALUES ('default')
 ON CONFLICT (id) DO NOTHING;
-ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS agent_skills jsonb NOT NULL DEFAULT '[{"id":"ecommerce-image","name":"电商生图","description":"为商品主图、场景图和详情页视觉生成结构化方案。","instructions":"识别商品卖点、目标人群、平台与画幅。优先规划白底主图、核心卖点场景图、细节特写和详情页横幅；保持商品外观、材质、颜色、Logo 与包装一致。提示词必须写清主体、构图、光线、背景、镜头、商业质感、尺寸比例与禁止变形要求。","enabled":true,"keywords":["电商","商品","主图","详情页","淘宝","京东","亚马逊"]}]'::jsonb;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS agent_skills jsonb NOT NULL DEFAULT '${DEFAULT_AGENT_SKILLS_JSON}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS logical_models jsonb NOT NULL DEFAULT '[]'::jsonb;
-ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS free_daily_points_enabled boolean NOT NULL DEFAULT true;
-ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS free_daily_points numeric(18, 2) NOT NULL DEFAULT 0;
-ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS generation_cost_control jsonb NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS data_lifecycle jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS system_model_channels (
@@ -123,66 +132,19 @@ CREATE TABLE IF NOT EXISTS users (
     id text PRIMARY KEY,
     account_id bigint NOT NULL DEFAULT nextval('user_account_id_seq'),
     username text NOT NULL,
-    email text,
     display_name text NOT NULL,
     bio text NOT NULL DEFAULT '',
     avatar_storage_key text,
-    role text NOT NULL DEFAULT 'user',
-    admin_permissions jsonb NOT NULL DEFAULT '[]'::jsonb,
     status text NOT NULL DEFAULT 'active',
-    plan_id text NOT NULL DEFAULT 'free' REFERENCES entitlement_plans(id),
-    points_balance numeric(18, 2) NOT NULL DEFAULT 0,
-    password_hash text NOT NULL,
-    mfa_secret_ciphertext text,
-    mfa_enabled_at timestamptz,
-    terms_version text,
-    terms_url text,
-    privacy_version text,
-    privacy_url text,
-    policy_accepted_at timestamptz,
-    last_login_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT users_role CHECK (role IN ('admin', 'user')),
-    CONSTRAINT users_admin_permissions_array CHECK (jsonb_typeof(admin_permissions) = 'array'),
     CONSTRAINT users_status CHECK (status IN ('active', 'disabled')),
-    CONSTRAINT users_mfa_enabled_secret CHECK (mfa_enabled_at IS NULL OR mfa_secret_ciphertext IS NOT NULL),
-    CONSTRAINT users_registration_consent_complete CHECK (
-        (terms_version IS NULL AND terms_url IS NULL AND privacy_version IS NULL AND privacy_url IS NULL AND policy_accepted_at IS NULL)
-        OR
-        (terms_version IS NOT NULL AND terms_url IS NOT NULL AND privacy_version IS NOT NULL AND privacy_url IS NOT NULL AND policy_accepted_at IS NOT NULL)
-    ),
     CONSTRAINT users_bio_length CHECK (char_length(bio) <= 160)
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS bio text NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_storage_key text;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS account_id bigint;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_secret_ciphertext text;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled_at timestamptz;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_permissions jsonb NOT NULL DEFAULT '[]'::jsonb;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version text;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_url text;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_version text;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_url text;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS policy_accepted_at timestamptz;
-
-UPDATE users
-SET admin_permissions = '${FULL_ADMIN_PERMISSIONS_JSON}'::jsonb
-WHERE id = (
-    SELECT id
-    FROM users
-    WHERE role = 'admin'
-    ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at ASC, id ASC
-    LIMIT 1
-)
-AND NOT EXISTS (
-    SELECT 1
-    FROM users
-    WHERE role = 'admin'
-      AND status = 'active'
-      AND admin_permissions @> '${FULL_ADMIN_PERMISSIONS_JSON}'::jsonb
-);
 
 WITH sequence_state AS (
     SELECT CASE WHEN is_called THEN last_value ELSE 0 END AS reserved_max FROM user_account_id_seq
@@ -212,58 +174,11 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_bio_length') THEN
         ALTER TABLE users ADD CONSTRAINT users_bio_length CHECK (char_length(bio) <= 160);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_registration_consent_complete') THEN
-        ALTER TABLE users ADD CONSTRAINT users_registration_consent_complete CHECK (
-            (terms_version IS NULL AND terms_url IS NULL AND privacy_version IS NULL AND privacy_url IS NULL AND policy_accepted_at IS NULL)
-            OR
-            (terms_version IS NOT NULL AND terms_url IS NOT NULL AND privacy_version IS NOT NULL AND privacy_url IS NOT NULL AND policy_accepted_at IS NOT NULL)
-        );
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_mfa_enabled_secret') THEN
-        ALTER TABLE users ADD CONSTRAINT users_mfa_enabled_secret CHECK (mfa_enabled_at IS NULL OR mfa_secret_ciphertext IS NOT NULL);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_admin_permissions_array') THEN
-        ALTER TABLE users ADD CONSTRAINT users_admin_permissions_array CHECK (jsonb_typeof(admin_permissions) = 'array');
-    END IF;
 END;
 $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON users (lower(username));
-CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (lower(email)) WHERE email IS NOT NULL AND email <> '';
 CREATE UNIQUE INDEX IF NOT EXISTS users_account_id_idx ON users (account_id);
-CREATE INDEX IF NOT EXISTS users_plan_id_idx ON users (plan_id);
-
-CREATE TABLE IF NOT EXISTS sessions (
-    id text PRIMARY KEY,
-    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash text NOT NULL UNIQUE,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    expires_at timestamptz NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);
-CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions (expires_at);
-
-CREATE TABLE IF NOT EXISTS account_deletion_requests (
-    id text PRIMARY KEY,
-    user_id text NOT NULL,
-    username_snapshot text NOT NULL,
-    display_name_snapshot text NOT NULL,
-    email_snapshot text,
-    status text NOT NULL DEFAULT 'pending',
-    request_note text NOT NULL DEFAULT '',
-    review_note text NOT NULL DEFAULT '',
-    reviewed_by_user_id text,
-    reviewed_by_username text,
-    requested_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    handled_at timestamptz,
-    CONSTRAINT account_deletion_requests_status CHECK (status IN ('pending', 'accepted', 'rejected', 'withdrawn'))
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS account_deletion_requests_user_pending_idx ON account_deletion_requests (user_id) WHERE status = 'pending';
-CREATE INDEX IF NOT EXISTS account_deletion_requests_user_created_idx ON account_deletion_requests (user_id, requested_at DESC);
-CREATE INDEX IF NOT EXISTS account_deletion_requests_status_created_idx ON account_deletion_requests (status, requested_at DESC);
 
 CREATE TABLE IF NOT EXISTS rate_limits (
     key_hash text PRIMARY KEY,
@@ -587,299 +502,6 @@ CREATE TABLE IF NOT EXISTS drama_project_versions (
 
 CREATE INDEX IF NOT EXISTS drama_project_versions_user_created_idx ON drama_project_versions (user_id, project_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS email_codes (
-    id text PRIMARY KEY,
-    purpose text NOT NULL,
-    email text NOT NULL,
-    user_id text REFERENCES users(id) ON DELETE CASCADE,
-    code_hash text NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    expires_at timestamptz NOT NULL,
-    consumed_at timestamptz,
-    attempts integer NOT NULL DEFAULT 0,
-    CONSTRAINT email_codes_purpose CHECK (purpose IN ('register', 'email-change', 'password-reset'))
-);
-
-ALTER TABLE email_codes ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0;
-
-CREATE INDEX IF NOT EXISTS email_codes_lookup_idx ON email_codes (purpose, lower(email), expires_at);
-
-CREATE TABLE IF NOT EXISTS quota_usage (
-    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    date date NOT NULL,
-    usage_kind text NOT NULL,
-    points_spent numeric(18, 2) NOT NULL DEFAULT 0,
-    units numeric(18, 2) NOT NULL DEFAULT 0,
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (user_id, date, usage_kind),
-    CONSTRAINT quota_usage_kind CHECK (usage_kind IN ('api', 'image', 'video', 'audio', 'text'))
-);
-
-CREATE INDEX IF NOT EXISTS quota_usage_date_idx ON quota_usage (date);
-
-CREATE TABLE IF NOT EXISTS point_records (
-    id text PRIMARY KEY,
-    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type text NOT NULL,
-    amount numeric(18, 2) NOT NULL,
-    balance_after numeric(18, 2) NOT NULL,
-    permanent_amount numeric(18, 2) NOT NULL DEFAULT 0,
-    daily_amount numeric(18, 2) NOT NULL DEFAULT 0,
-    permanent_balance_after numeric(18, 2) NOT NULL DEFAULT 0,
-    daily_balance_after numeric(18, 2) NOT NULL DEFAULT 0,
-    description text NOT NULL,
-    model text,
-    idempotency_key text,
-    request_fingerprint text,
-    source_record_id text,
-    source_date date,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT point_records_type CHECK (type IN ('consume', 'refund', 'credit', 'admin-adjust'))
-);
-
-ALTER TABLE point_records ADD COLUMN IF NOT EXISTS permanent_amount numeric(18, 2) NOT NULL DEFAULT 0;
-ALTER TABLE point_records ADD COLUMN IF NOT EXISTS daily_amount numeric(18, 2) NOT NULL DEFAULT 0;
-ALTER TABLE point_records ADD COLUMN IF NOT EXISTS permanent_balance_after numeric(18, 2) NOT NULL DEFAULT 0;
-ALTER TABLE point_records ADD COLUMN IF NOT EXISTS daily_balance_after numeric(18, 2) NOT NULL DEFAULT 0;
-ALTER TABLE point_records ADD COLUMN IF NOT EXISTS idempotency_key text;
-ALTER TABLE point_records ADD COLUMN IF NOT EXISTS request_fingerprint text;
-ALTER TABLE point_records ADD COLUMN IF NOT EXISTS source_record_id text;
-ALTER TABLE point_records ADD COLUMN IF NOT EXISTS source_date date;
-UPDATE point_records
-SET
-    type = 'credit',
-    permanent_amount = CASE WHEN permanent_amount = 0 THEN amount ELSE permanent_amount END,
-    permanent_balance_after = CASE WHEN permanent_balance_after = 0 THEN balance_after ELSE permanent_balance_after END
-WHERE type = 'check-in';
-ALTER TABLE point_records DROP CONSTRAINT IF EXISTS point_records_type;
-ALTER TABLE point_records ADD CONSTRAINT point_records_type CHECK (type IN ('consume', 'refund', 'credit', 'admin-adjust'));
-CREATE INDEX IF NOT EXISTS point_records_user_created_idx ON point_records (user_id, created_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS point_records_idempotency_idx ON point_records (idempotency_key) WHERE idempotency_key IS NOT NULL AND idempotency_key <> '';
-CREATE UNIQUE INDEX IF NOT EXISTS point_records_refund_source_idx ON point_records (source_record_id) WHERE type = 'refund' AND source_record_id IS NOT NULL AND source_record_id <> '';
-
-CREATE TABLE IF NOT EXISTS daily_plan_point_wallets (
-    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    date date NOT NULL,
-    plan_id text NOT NULL REFERENCES entitlement_plans(id),
-    assignment_id text,
-    granted_points numeric(18, 2) NOT NULL DEFAULT 0,
-    remaining_points numeric(18, 2) NOT NULL DEFAULT 0,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (user_id, date),
-    CONSTRAINT daily_plan_point_wallets_granted CHECK (granted_points >= 0),
-    CONSTRAINT daily_plan_point_wallets_remaining CHECK (remaining_points >= 0 AND remaining_points <= granted_points)
-);
-
-CREATE INDEX IF NOT EXISTS daily_plan_point_wallets_assignment_idx ON daily_plan_point_wallets (assignment_id, date DESC);
-
-CREATE TABLE IF NOT EXISTS billing_products (
-    id text PRIMARY KEY,
-    product_kind text NOT NULL DEFAULT 'plan',
-    plan_id text REFERENCES entitlement_plans(id),
-    name text NOT NULL,
-    description text NOT NULL DEFAULT '',
-    amount_cents bigint NOT NULL DEFAULT 0,
-    currency text NOT NULL DEFAULT 'CNY',
-    points_amount numeric(18, 2) NOT NULL DEFAULT 0,
-    daily_points numeric(18, 2) NOT NULL DEFAULT 0,
-    period_days integer NOT NULL DEFAULT 30,
-    enabled boolean NOT NULL DEFAULT true,
-    sort_order integer NOT NULL DEFAULT 0,
-    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT billing_products_amount CHECK (amount_cents >= 0),
-    CONSTRAINT billing_products_points CHECK (points_amount >= 0),
-    CONSTRAINT billing_products_daily_points CHECK (daily_points >= 0),
-    CONSTRAINT billing_products_kind CHECK (product_kind IN ('plan', 'points')),
-    CONSTRAINT billing_products_period_days CHECK (period_days >= 0)
-);
-
-CREATE INDEX IF NOT EXISTS billing_products_plan_idx ON billing_products (plan_id, enabled, sort_order);
-CREATE INDEX IF NOT EXISTS billing_products_enabled_idx ON billing_products (enabled, sort_order);
-
-ALTER TABLE billing_products ADD COLUMN IF NOT EXISTS product_kind text NOT NULL DEFAULT 'plan';
-ALTER TABLE billing_products ADD COLUMN IF NOT EXISTS daily_points numeric(18, 2) NOT NULL DEFAULT 0;
-ALTER TABLE billing_products ALTER COLUMN plan_id DROP NOT NULL;
-ALTER TABLE billing_products DROP CONSTRAINT IF EXISTS billing_products_kind;
-ALTER TABLE billing_products ADD CONSTRAINT billing_products_kind CHECK (product_kind IN ('plan', 'points'));
-ALTER TABLE billing_products DROP CONSTRAINT IF EXISTS billing_products_daily_points;
-ALTER TABLE billing_products ADD CONSTRAINT billing_products_daily_points CHECK (daily_points >= 0);
-
-INSERT INTO billing_products (id, plan_id, name, description, amount_cents, currency, points_amount, period_days, enabled, sort_order, metadata)
-VALUES
-(
-    'creator-monthly',
-    'creator',
-    '创作者月卡',
-    '适合个人创作者持续使用生图、视频和提示词工作流，包含创作者版权益与积分包。',
-    990,
-    'CNY',
-    500,
-    30,
-    true,
-    10,
-    '{"highlight":"个人创作入门","recommended":true}'::jsonb
-),
-(
-    'pro-monthly',
-    'pro',
-    '专业月卡',
-    '适合高频创作、团队试运营和商业项目交付，包含专业版权益与更高积分包。',
-    2990,
-    'CNY',
-    2000,
-    30,
-    true,
-    20,
-    '{"highlight":"高频商业创作"}'::jsonb
-)
-ON CONFLICT (id) DO NOTHING;
-
-CREATE TABLE IF NOT EXISTS billing_reconciliation_runs (
-    id text PRIMARY KEY,
-    provider text NOT NULL,
-    source text NOT NULL DEFAULT 'csv',
-    status text NOT NULL DEFAULT 'completed',
-    total_rows integer NOT NULL DEFAULT 0,
-    matched_rows integer NOT NULL DEFAULT 0,
-    ok_rows integer NOT NULL DEFAULT 0,
-    issue_rows integer NOT NULL DEFAULT 0,
-    statement_paid_amount_cents bigint NOT NULL DEFAULT 0,
-    statement_refunded_amount_cents bigint NOT NULL DEFAULT 0,
-    local_matched_amount_cents bigint NOT NULL DEFAULT 0,
-    difference_amount_cents bigint NOT NULL DEFAULT 0,
-    imported_by_user_id text REFERENCES users(id) ON DELETE SET NULL,
-    imported_by_username text,
-    file_name text,
-    file_hash text,
-    note text,
-    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT billing_reconciliation_runs_status CHECK (status IN ('completed', 'failed')),
-    CONSTRAINT billing_reconciliation_runs_source CHECK (source IN ('csv', 'provider-api', 'manual'))
-);
-
-CREATE INDEX IF NOT EXISTS billing_reconciliation_runs_created_idx ON billing_reconciliation_runs (created_at DESC);
-CREATE INDEX IF NOT EXISTS billing_reconciliation_runs_provider_created_idx ON billing_reconciliation_runs (provider, created_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS billing_reconciliation_runs_provider_file_hash_idx ON billing_reconciliation_runs (provider, file_hash) WHERE file_hash IS NOT NULL AND file_hash <> '';
-
-CREATE TABLE IF NOT EXISTS billing_reconciliation_rows (
-    id text PRIMARY KEY,
-    run_id text NOT NULL REFERENCES billing_reconciliation_runs(id) ON DELETE CASCADE,
-    row_number integer NOT NULL,
-    row_key text NOT NULL,
-    provider text NOT NULL,
-    order_no text,
-    provider_order_id text,
-    provider_payment_id text,
-    statement_status text NOT NULL DEFAULT 'unknown',
-    amount_cents bigint,
-    currency text,
-    local_order_id text REFERENCES billing_orders(id) ON DELETE SET NULL,
-    local_order_no text,
-    local_order_status text,
-    local_amount_cents bigint,
-    local_currency text,
-    issue_codes jsonb NOT NULL DEFAULT '[]'::jsonb,
-    issues jsonb NOT NULL DEFAULT '[]'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT billing_reconciliation_rows_statement_status CHECK (statement_status IN ('paid', 'refunded', 'pending', 'failed', 'unknown'))
-);
-
-CREATE INDEX IF NOT EXISTS billing_reconciliation_rows_run_idx ON billing_reconciliation_rows (run_id, row_number ASC);
-CREATE INDEX IF NOT EXISTS billing_reconciliation_rows_issue_codes_gin_idx ON billing_reconciliation_rows USING gin (issue_codes);
-
-CREATE TABLE IF NOT EXISTS user_plan_assignments (
-    id text PRIMARY KEY,
-    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    plan_id text NOT NULL REFERENCES entitlement_plans(id),
-    status text NOT NULL DEFAULT 'active',
-    source text NOT NULL DEFAULT 'admin',
-    source_id text,
-    starts_at timestamptz NOT NULL DEFAULT now(),
-    ends_at timestamptz,
-    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT user_plan_assignments_status CHECK (status IN ('active', 'expired', 'canceled')),
-    CONSTRAINT user_plan_assignments_source CHECK (source IN ('admin', 'order', 'cdk', 'system'))
-);
-
-CREATE INDEX IF NOT EXISTS user_plan_assignments_user_active_idx ON user_plan_assignments (user_id, status, starts_at DESC);
-CREATE INDEX IF NOT EXISTS user_plan_assignments_plan_idx ON user_plan_assignments (plan_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS user_plan_assignments_source_idx ON user_plan_assignments (source, source_id);
-CREATE UNIQUE INDEX IF NOT EXISTS user_plan_assignments_source_unique_idx ON user_plan_assignments (source, source_id) WHERE source_id IS NOT NULL AND source_id <> '';
-
-CREATE TABLE IF NOT EXISTS payment_provider_events (
-    id text PRIMARY KEY,
-    provider text NOT NULL,
-    event_id text,
-    event_type text NOT NULL DEFAULT '',
-    order_id text REFERENCES billing_orders(id) ON DELETE SET NULL,
-    signature_valid boolean NOT NULL DEFAULT false,
-    payload jsonb NOT NULL DEFAULT '{}'::jsonb,
-    processing_at timestamptz,
-    processed_at timestamptz,
-    error text,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE payment_provider_events ADD COLUMN IF NOT EXISTS processing_at timestamptz;
-
-CREATE INDEX IF NOT EXISTS payment_provider_events_provider_created_idx ON payment_provider_events (provider, created_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS payment_provider_events_provider_event_idx ON payment_provider_events (provider, event_id) WHERE event_id IS NOT NULL AND event_id <> '';
-
-CREATE TABLE IF NOT EXISTS cdk_codes (
-    id text PRIMARY KEY,
-    code_hash text NOT NULL UNIQUE,
-    code_ciphertext text NOT NULL DEFAULT '',
-    code_preview text NOT NULL,
-    points numeric(18, 2) NOT NULL DEFAULT 0,
-    max_redemptions integer NOT NULL DEFAULT 1,
-    redeemed_count integer NOT NULL DEFAULT 0,
-    status text NOT NULL DEFAULT 'active',
-    note text NOT NULL DEFAULT '',
-    expires_at timestamptz,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT cdk_codes_status CHECK (status IN ('active', 'disabled')),
-    CONSTRAINT cdk_codes_max_redemptions CHECK (max_redemptions >= 1)
-);
-
-CREATE INDEX IF NOT EXISTS cdk_codes_status_idx ON cdk_codes (status);
-CREATE INDEX IF NOT EXISTS cdk_codes_status_created_idx ON cdk_codes (status, created_at DESC);
-
-ALTER TABLE cdk_codes ADD COLUMN IF NOT EXISTS code_ciphertext text NOT NULL DEFAULT '';
-
-CREATE TABLE IF NOT EXISTS cdk_redemptions (
-    cdk_code_id text NOT NULL REFERENCES cdk_codes(id) ON DELETE CASCADE,
-    user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    redeemed_at timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (cdk_code_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS cdk_redemptions_user_id_idx ON cdk_redemptions (user_id);
-
-CREATE TABLE IF NOT EXISTS announcements (
-    id text PRIMARY KEY,
-    title text NOT NULL,
-    content text NOT NULL,
-    enabled boolean NOT NULL DEFAULT true,
-    popup_home boolean NOT NULL DEFAULT false,
-    popup_after_login boolean NOT NULL DEFAULT false,
-    starts_at timestamptz,
-    ends_at timestamptz,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS announcements_visible_idx ON announcements (enabled, starts_at, ends_at);
-
 CREATE TABLE IF NOT EXISTS prompts (
     id text PRIMARY KEY,
     scope text NOT NULL,
@@ -990,6 +612,6 @@ CREATE INDEX IF NOT EXISTS audit_logs_target_idx ON audit_logs (target_type, tar
 ${POSTGRESQL_TRIGGER_SCHEMA_SQL}
 
 INSERT INTO schema_migrations (version)
-VALUES ('20260709_postgresql_commercial_base'), ('20260709_billing_foundation'), ('20260709_billing_checkout'), ('20260709_commercial_seed_products'), ('20260709_vozeb_pro_table_prefix'), ('20260711_generation_tasks'), ('20260716_billing_reconciliation'), ('20260725_account_deletion_requests'), ('20260726_promotion_coupon_commerce'), ('20260727_referral_growth_rewards'), ('20260727_work_publications'), ('20260727_work_community'), ('20260728_user_blocks')
+VALUES ('20260916_local_studio_schema')
 ON CONFLICT (version) DO NOTHING;
 `;

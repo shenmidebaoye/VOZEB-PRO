@@ -4,7 +4,6 @@ import { FileAudio, FileDown, FileUp, Film, Plus, Search, Upload } from "lucide-
 import { useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import { App, Button, Form, Input, Modal, Pagination, Segmented, Select, Space, Spin, Tag, Tooltip, Typography } from "antd";
 import { saveAs } from "file-saver";
-import { useRouter } from "next/navigation";
 
 import { useCopyText } from "@/hooks/use-copy-text";
 import { CompactEmptyState } from "@/components/compact-empty-state";
@@ -46,7 +45,6 @@ import { useAssetPage } from "./use-asset-page";
 
 export default function AssetsPage() {
     const { message } = App.useApp();
-    const router = useRouter();
     const copyText = useCopyText();
     const [form] = Form.useForm<AssetFormValues>();
     const coverInputRef = useRef<HTMLInputElement>(null);
@@ -322,7 +320,6 @@ export default function AssetsPage() {
                                     onCopy={copyAssetText}
                                     onDownload={downloadImage}
                                     onDelete={() => setDeletingAsset(asset)}
-                                    onPublish={asset.kind === "text" ? undefined : () => router.push(`/works?sourceType=media&sourceId=${encodeURIComponent(asset.id)}`)}
                                 />
                             ))}
                         </div>

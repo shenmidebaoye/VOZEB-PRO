@@ -1,9 +1,6 @@
 export type UserRole = "admin" | "user";
 export type UserStatus = "active" | "disabled";
-export type { AdminPermission } from "@/lib/admin-permissions";
-import type { AdminPermission } from "@/lib/admin-permissions";
 import type { GlobalAiOpcPresetId } from "@/lib/globalaiopc-catalog";
-import type { RegistrationPolicyConsent } from "@/lib/registration-consent";
 import { VOZEB_QQ_GROUP_URL } from "@/constant/community";
 
 export type ApiCallFormat = "openai" | "gemini";
@@ -71,14 +68,6 @@ export type SystemChannelAdvancedConfig = {
     contextWindowTokens?: number;
 };
 
-export type LegacyUserQuota = {
-    imageDaily: number;
-    videoDaily: number;
-    textDaily: number;
-    audioDaily: number;
-};
-
-export type ModelPointCosts = Record<string, number>;
 export type PointUsageKind = "api" | "image" | "video" | "audio" | "text";
 
 export type SystemModelChannel = {
@@ -187,112 +176,10 @@ export type GenerationDefaultSettings = {
     audioFormat: string;
 };
 
-export type GenerationPointMultipliers = {
-    imageQuality: Record<string, number>;
-    videoQuality: Record<string, number>;
-    videoSeconds: Record<string, number>;
-};
-
-export type GenerationCostControlSettings = {
-    maxPointsPerTask: number;
-    dailyUserPointSpend: number;
-    dailyTotalPointSpend: number;
-};
-
 export type DataLifecycleSettings = {
-    cleanupExpiredSessions: boolean;
-    cleanupExpiredEmailCodes: boolean;
     cleanupExpiredGenerationTasks: boolean;
     cleanupExpiredTemporaryMedia: boolean;
     maintenanceBatchSize: number;
-};
-
-export type EntitlementPlanLimits = {
-    dailyPointSpend: number;
-    dailyApiCalls: number;
-    dailyImages: number;
-    dailyVideos: number;
-    dailyAudio: number;
-    dailyText: number;
-};
-
-export type EntitlementPlan = {
-    id: string;
-    name: string;
-    enabled: boolean;
-    dailyPoints: number;
-    limits: EntitlementPlanLimits;
-    features: string[];
-};
-
-export type EntitlementSettings = {
-    enabled: boolean;
-    defaultPlanId: string;
-    plans: EntitlementPlan[];
-};
-
-export type CdkStatus = "active" | "disabled";
-
-export type PublicCdkRedemption = {
-    userId: string;
-    accountId?: string;
-    username: string;
-    displayName: string;
-    redeemedAt: string;
-};
-
-export type PublicCdkCode = {
-    id: string;
-    codePreview: string;
-    code?: string;
-    points: number;
-    maxRedemptions: number;
-    redeemedCount: number;
-    redemptions: PublicCdkRedemption[];
-    status: CdkStatus;
-    note: string;
-    expiresAt?: string;
-    createdAt: string;
-    updatedAt: string;
-};
-
-export type CreatedCdkCode = PublicCdkCode & {
-    code: string;
-};
-
-export type StoredCdkRedemption = {
-    userId: string;
-    redeemedAt: string;
-};
-
-export type StoredCdkCode = Omit<PublicCdkCode, "redemptions"> & {
-    codeHash: string;
-    redemptions: StoredCdkRedemption[];
-};
-
-export type PublicAnnouncement = {
-    id: string;
-    title: string;
-    content: string;
-    enabled: boolean;
-    popupHome: boolean;
-    popupAfterLogin: boolean;
-    startsAt?: string;
-    endsAt?: string;
-    createdAt: string;
-    updatedAt: string;
-};
-
-export type AnnouncementPageInput = {
-    page?: number;
-    pageSize?: number;
-};
-
-export type AnnouncementPage = {
-    items: PublicAnnouncement[];
-    total: number;
-    page: number;
-    pageSize: number;
 };
 
 export type SiteSettings = {
@@ -342,136 +229,39 @@ export const DEFAULT_SITE_FRIEND_LINKS: SiteFriendLink[] = [
     { id: "linux-do", label: "Linux.do", url: "https://linux.do/", enabled: true },
 ];
 
-export type MailSettings = {
-    provider: string;
-    host: string;
-    port: number;
-    secure: boolean;
-    username: string;
-    password: string;
-    fromEmail: string;
-    fromName: string;
-};
-
 export type PublicUser = {
     id: string;
-    accountId: string;
     username: string;
-    email?: string;
     displayName: string;
-    bio: string;
+    bio?: string;
     avatarUrl?: string;
-    role: UserRole;
-    adminPermissions: AdminPermission[];
     status: UserStatus;
-    planId: string;
-    planName: string;
-    hasActivePlan: boolean;
-    pointsBalance: number;
-    permanentPointsBalance: number;
-    dailyPointsBalance: number;
-    dailyPointsExpiresAt: string;
-    mfaEnabled: boolean;
-    createdAt: string;
-    updatedAt: string;
-    lastLoginAt?: string;
+    accountId?: string;
+    createdAt?: string;
+    updatedAt?: string;
 };
 
 export type PublicUserSummary = {
     total: number;
     active: number;
     disabled: number;
-    admins: number;
-    activeAdmins: number;
-    usersWithPlan: number;
-    totalPointsBalance: number;
 };
 
-export type StoredUser = Omit<PublicUser, "avatarUrl" | "planName" | "hasActivePlan" | "permanentPointsBalance" | "dailyPointsBalance" | "dailyPointsExpiresAt" | "mfaEnabled"> & {
+export type StoredUser = {
+    id: string;
+    accountId: string;
+    username: string;
+    displayName: string;
+    bio: string;
     avatarStorageKey?: string;
-    passwordHash: string;
-    mfaSecretCiphertext?: string;
-    mfaEnabledAt?: string;
-    registrationConsent?: RegistrationPolicyConsent;
-};
-
-export type StoredSession = {
-    id: string;
-    userId: string;
-    tokenHash: string;
-    createdAt: string;
-    expiresAt: string;
-};
-
-export type PublicPointRecord = {
-    id: string;
-    userId: string;
-    type: "consume" | "refund" | "credit" | "admin-adjust";
-    amount: number;
-    balanceAfter: number;
-    permanentAmount: number;
-    dailyAmount: number;
-    permanentBalanceAfter: number;
-    dailyBalanceAfter: number;
-    description: string;
-    model?: string;
-    idempotencyKey?: string;
-    sourceRecordId?: string;
-    sourceDate?: string;
-    createdAt: string;
-};
-
-export type StoredPointRecord = PublicPointRecord & {
-    requestFingerprint?: string;
-};
-
-export type StoredDailyPlanPointWallet = {
-    userId: string;
-    date: string;
-    planId: string;
-    assignmentId?: string;
-    grantedPoints: number;
-    remainingPoints: number;
+    status: UserStatus;
     createdAt: string;
     updatedAt: string;
-};
-
-export type StoredQuotaUsage = {
-    userId: string;
-    date: string;
-    usageKind: PointUsageKind;
-    pointsSpent: number;
-    units: number;
-    updatedAt: string;
-};
-
-export type EmailCodePurpose = "register" | "email-change" | "password-reset";
-
-export type StoredEmailCode = {
-    id: string;
-    purpose: EmailCodePurpose;
-    email: string;
-    userId?: string;
-    codeHash: string;
-    createdAt: string;
-    expiresAt: string;
-    consumedAt?: string;
-    attempts?: number;
 };
 
 export type AuthSettings = {
     site: SiteSettings;
-    registrationEnabled: boolean;
-    emailRegistrationEnabled: boolean;
-    freeDailyPointsEnabled: boolean;
-    freeDailyPoints: number;
-    mail: MailSettings;
-    allowUserApiConfig: boolean;
-    modelPointCosts: ModelPointCosts;
-    generationPointMultipliers: GenerationPointMultipliers;
-    generationCostControl: GenerationCostControlSettings;
     dataLifecycle: DataLifecycleSettings;
-    entitlements: EntitlementSettings;
     generationConcurrency: GenerationConcurrencySettings;
     generationDefaults: GenerationDefaultSettings;
     systemChannels: SystemModelChannel[];
@@ -484,12 +274,5 @@ export type AuthDatabase = {
     version: 1;
     nextUserAccountId: number;
     users: StoredUser[];
-    sessions: StoredSession[];
-    quotaUsage: StoredQuotaUsage[];
-    pointRecords: StoredPointRecord[];
-    dailyPlanPointWallets: StoredDailyPlanPointWallet[];
-    emailCodes: StoredEmailCode[];
-    cdkCodes: StoredCdkCode[];
-    announcements: PublicAnnouncement[];
     settings: AuthSettings;
 };

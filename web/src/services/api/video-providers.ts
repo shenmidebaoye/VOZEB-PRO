@@ -6,7 +6,6 @@ import { resolveGeneratedMediaUrl } from "@/lib/media-url";
 import { buildGlobalAiOpcVideoRequest, resolveGlobalAiOpcPreset } from "@/lib/globalaiopc-catalog";
 import { getMediaBlob, readStoredMediaFile, uploadGeneratedMediaFile, type UploadedFile } from "@/services/file-storage";
 import { imageToDataUrl } from "@/services/image-storage";
-import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
 import { boolConfig, buildSeedancePromptText, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceVideoReferenceError, SEEDANCE_REFERENCE_LIMITS } from "@/lib/seedance-video";
 import { buildApiUrl, modelOptionName, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
 import type { ReferenceImage } from "@/types/image";
@@ -131,20 +130,16 @@ export async function createOpenAIVideoTask(config: AiConfig, model: string, pro
             body.append("input_reference", file);
         });
         const response = await axios.post<ApiVideoResponse>(aiApiUrl(config, "/videos"), body, { headers: aiHeaders(config), signal: options?.signal });
-        syncUserPointsFromHeaders(response.headers, config.apiSource);
         const immediateUrl = findMediaUrl(response.data);
         if (immediateUrl) {
-            await refreshUserPointsIfSystem(config.apiSource);
             return { id: `direct:${Date.now()}`, provider: "generation", model, pollPath: "/videos", resultUrl: immediateUrl };
         }
         const created = unwrapVideoResponse(response.data);
         if (!created.id) throw new Error("视频接口没有返回任务 ID");
-        await refreshUserPointsIfSystem(config.apiSource);
         return { id: created.id, provider: "openai", model };
     } catch (error) {
         const errorMessage = readAxiosError(error, "视频任务创建失败");
         if (config.advancedConfig?.protocol !== "openai" && shouldFallbackToCompatibleVideo(error, errorMessage)) return createCompatibleVideoTask(config, model, prompt, references, options);
-        await refreshUserPointsIfSystem(config.apiSource);
         throw new Error(videoCreationError(errorMessage));
     }
 }
@@ -181,7 +176,6 @@ export async function createCompatibleVideoTask(
         for (const payload of payloads) {
             try {
                 const response = await axios.post<ApiEnvelope<Record<string, unknown>>>(aiApiUrl(config, path), payload, { headers: aiHeaders(config, "application/json"), signal: options?.signal });
-                syncUserPointsFromHeaders(response.headers, config.apiSource);
                 const created = unwrapEnvelope(response.data, "视频接口没有返回任务") as Record<string, unknown>;
                 if (references.length && readTaskMode(created) === "t2v") {
                     lastError = "video task was created without accepting reference images";
@@ -190,23 +184,19 @@ export async function createCompatibleVideoTask(
                 const id = readTaskId(created);
                 const immediateUrl = readConfiguredMediaUrl(config, created) || findMediaUrl(created);
                 if (immediateUrl) {
-                    await refreshUserPointsIfSystem(config.apiSource);
                     return { id: id || `direct:${Date.now()}`, provider: "generation", model, pollPath: path, resultUrl: immediateUrl };
                 }
                 if (!id) throw new Error("视频接口没有返回任务 ID");
-                await refreshUserPointsIfSystem(config.apiSource);
                 return { id, provider: "generation", model, pollPath: path };
             } catch (error) {
                 const message = readAxiosError(error, "视频任务创建失败");
                 lastError = message;
                 if (shouldFallbackToCompatibleVideo(error, message)) break;
                 if (shouldRetryCompatibleVideoPayload(error, message)) continue;
-                await refreshUserPointsIfSystem(config.apiSource);
                 throw new Error(videoCreationError(message));
             }
         }
     }
-    await refreshUserPointsIfSystem(config.apiSource);
     throw new Error(videoCreationError(lastError || "视频任务创建失败"));
 }
 
@@ -298,13 +288,10 @@ export async function createSeedanceTask(config: AiConfig, model: string, prompt
 
     try {
         const response = await axios.post<ApiEnvelope<SeedanceTask>>(seedanceApiUrl(config), payload, { headers: aiHeaders(config, "application/json"), signal: options?.signal });
-        syncUserPointsFromHeaders(response.headers, config.apiSource);
         const created = unwrapSeedanceTask(response.data);
         if (!created.id) throw new Error("Seedance 接口没有返回任务 ID");
-        await refreshUserPointsIfSystem(config.apiSource);
         return { id: created.id, provider: "seedance", model };
     } catch (error) {
-        await refreshUserPointsIfSystem(config.apiSource);
         throw new Error(videoCreationError(readAxiosError(error, "Seedance 任务创建失败")));
     }
 }
@@ -328,14 +315,11 @@ export async function createSeedanceSpecialTask(config: AiConfig, model: string,
     });
     try {
         const response = await axios.post<ApiEnvelope<Record<string, unknown>>>(aiApiUrl(config, createPath), payload, { headers: aiHeaders(config, "application/json"), signal: options?.signal });
-        syncUserPointsFromHeaders(response.headers, config.apiSource);
         const created = unwrapEnvelope(response.data, "Seedance 特价版接口没有返回任务") as Record<string, unknown>;
         const id = readTaskId(created);
         if (!id) throw new Error("Seedance 特价版接口没有返回任务 ID");
-        await refreshUserPointsIfSystem(config.apiSource);
         return { id, provider: "generation", model, pollPath: createPath };
     } catch (error) {
-        await refreshUserPointsIfSystem(config.apiSource);
         throw new Error(videoCreationError(readAxiosError(error, "Seedance 特价版任务创建失败")));
     }
 }

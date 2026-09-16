@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminMediaTypeTabs } from "@/components/admin/admin-media-type-tabs";
 import { Panel, PanelHeader } from "@/components/admin/admin-panel";
-import { AdminAccountId } from "@/components/admin/admin-user-identity";
+import { AdminAccountId } from "@/components/admin/admin-dashboard-elements";
 import type { LocalMediaAsset, LocalMediaStoragePayload } from "@/lib/local-media-storage-contract";
 import { managedMediaTypeLabel, mediaSourceGroupOptions, mediaSourceLabel } from "@/lib/media-management-contract";
 import { imagePreviewUrl, originalMediaDownloadUrl } from "@/lib/media-image-url";

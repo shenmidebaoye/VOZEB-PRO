@@ -38,7 +38,7 @@ VOZEB PRO 的 PostgreSQL 真实表名统一使用项目名前缀 `vozeb_pro_`。
 ## 核心表
 
 - `vozeb_pro_schema_migrations`：已应用的数据库结构版本。
-- `vozeb_pro_app_settings`：站点、注册、邮箱、积分、生成、支付配置、逻辑模型目录、渠道绑定和默认模型等全局设置；`logical_models` JSONB 保存用户可见模型及其能力、上游模型、渠道、启用状态和优先级，`generation_cost_control` JSONB 保存管理员配置的单任务、单用户每日和全站每日积分成本上限，三个值为 `0` 时均表示不限制；`data_lifecycle` JSONB 保存四类技术到期清理开关和单类批次大小，不承载对话、支付、审计等长期业务数据的法律保留期限。
+- `vozeb_pro_app_settings`：本机工作室全局设置，保存站点资料、生成并发、默认生成参数、数据维护、逻辑模型目录、默认模型和 Agent Skills；`logical_models` JSONB 保存用户可见模型及其能力、上游模型、渠道、启用状态和优先级；`data_lifecycle` JSONB 保存过期会话、到期生成任务和过期临时媒体三类清理开关及单类批次大小。不再保存注册、SMTP、积分倍率、套餐权益或 `payment_config`。
 - `vozeb_pro_object_storage_settings`：S3 兼容外部存储单例配置，保存启用状态、Endpoint、Region、Bucket、对象前缀、path-style 模式及加密后的 Access Key/Secret Key；管理接口只返回密钥是否已配置，不回传明文。
 - `vozeb_pro_system_model_channels`：系统模型渠道、分别加密保存的 API Key 与渠道生成回调密钥、模型列表和高级配置；后台不保存渠道验证记录。
 - `vozeb_pro_entitlement_plans`：商业套餐权益、每日额度、调用限制和功能标记；新用户不再通过套餐获得注册初始积分。
@@ -140,7 +140,7 @@ Agent Run 的状态与任务数组继续保存在 `generation_tasks.payload`，�
 
 `billing`、`promotions`、`coupons` 和 `referrals` Repository 已提供套餐商品、限时活动、优惠券模板、用户券、邀请计划/关系/奖励、订单、支付流水、支付回调事件、用户套餐生效记录、核销凭证、支付商账单对账批次和对账明细的基础读写能力。下单事务按稳定顺序锁定商品与用户券，保存日常价、活动优惠、券优惠和实付快照；关闭、超时、支付成功与整单退款沿用同一订单事务更新券状态。受邀用户首笔可信实付订单在支付事务内生成唯一奖励，冷静期到期后由维护接口或后台人工结算；退款和管理员拒绝会撤销未结算奖励、反向积分流水或安全撤销未使用优惠券，已锁定/核销优惠券进入人工复核。后台财务摘要通过一次 PostgreSQL CTE 查询聚合订单、支付、渠道和对账异常；缺少成功支付的已支付订单按订单计数，正常已退款订单不会因保留原成功支付流水而误报。当前已接入套餐商品/促销/优惠券/邀请奖励配置 API、用户领券/报价/创建订单 API、订单列表 API、支付成功后开通套餐/发放积分服务、真实支付下单参数生成、后台账单导入对账，以及 `/api/billing/webhooks/{provider}` 支付回调入口。
 
-后台支付配置已通过 `vozeb_pro_app_settings.payment_config` 保存；Stripe、支付宝、微信支付、PayPly 和人工确认的密钥会按字段加密存储。支付宝在同一个 Provider 配置内保存 `mode=official|face_to_face`，因此官方支付和当面付天然互斥，不会向用户暴露两个支付宝渠道。支付下单、回调验签和后台配置状态读取时优先使用后台保存值，环境变量仍作为服务器部署兜底。
+本机工作室不再通过 `app_settings.payment_config` 保存支付商密钥；相关商业配置已从设置表移除。
 
 全新 PostgreSQL 初始化后会写入 `free`、`creator`、`pro` 三档权益，并预置 `creator-monthly`、`pro-monthly` 两个可售套餐商品。重复执行 schema 初始化不会重复插入或覆盖运营后台后续修改。
 

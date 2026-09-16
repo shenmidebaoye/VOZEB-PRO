@@ -1,6 +1,6 @@
 import sharp from "sharp";
 
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { normalizeCanvasImageDecomposition, canvasImageDecompositionInstruction, canvasImageDecompositionTool, type CanvasImageDecomposition } from "@/lib/canvas-image-decomposition";
 import { CREATIVE_UPLOAD_MAX_BYTES } from "@/lib/creative-upload";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
@@ -9,7 +9,7 @@ import { resolveLogicalModelCandidates, type ResolvedLogicalModel } from "@/lib/
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 import { strictJsonObjectText } from "@/lib/server/structured-model-output";
-import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
+import { systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { rankTextPlanningCandidates } from "@/lib/server/text-planning-runtime";
 import { resolveTextProtocol } from "@/lib/server/text-protocol-resolver";
 
@@ -39,7 +39,6 @@ export async function decomposeCanvasImage(input: { origin: string; cookie: stri
             const call = await requestDecomposition(candidate, source, input.origin, input.cookie, input.userId, model, idempotencyKey);
             const result = parseDecomposition(call.arguments, source.width, source.height);
             if (result) return result;
-            await refundInvalidResponse(input.userId, model, call.headers);
             latestError = new CanvasImageDecompositionError("默认文本模型没有返回可靠的图片分层策略");
         } catch (error) {
             latestError = error;
@@ -49,7 +48,7 @@ export async function decomposeCanvasImage(input: { origin: string; cookie: stri
     throw new CanvasImageDecompositionError(toSafeGenerationErrorMessage(latestError, "图片分层识别失败，请稍后重试"));
 }
 
-async function requestDecomposition(candidate: ResolvedLogicalModel, source: SourceImage, origin: string, cookie: string, userId: string, billingModel: string, idempotencyKey: string): Promise<VisionCall> {
+async function requestDecomposition(candidate: ResolvedLogicalModel, source: SourceImage, origin: string, cookie: string, _userId: string, billingModel: string, idempotencyKey: string): Promise<VisionCall> {
     const protocol = resolveTextProtocol({ model: candidate.upstreamModel, apiFormat: candidate.channel.apiFormat, advancedConfig: candidate.channel.advancedConfig, throughSystemProxy: true });
     if (protocol.kind === "custom" || protocol.kind === "claude") throw new CanvasImageDecompositionError("当前默认文本模型协议不支持图片理解，请在后台配置支持视觉输入的文本模型", 503);
     const instruction = canvasImageDecompositionInstruction(source.width, source.height);
@@ -75,12 +74,10 @@ async function requestDecomposition(candidate: ResolvedLogicalModel, source: Sou
     }
     const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
     if (!payload) {
-        await refundInvalidResponse(userId, billingModel, response.headers);
         throw new CanvasImageDecompositionError("图片理解模型返回了无效 JSON");
     }
     const argumentsText = readVisionArguments(protocol.kind, payload);
     if (!argumentsText) {
-        await refundInvalidResponse(userId, billingModel, response.headers);
         throw new CanvasImageDecompositionError("图片理解模型没有返回分层结构");
     }
     return { arguments: argumentsText, headers: response.headers };
@@ -188,12 +185,6 @@ function parseDecomposition(value: string, width: number, height: number) {
     } catch {
         return null;
     }
-}
-
-async function refundInvalidResponse(userId: string, model: string, headers: Headers) {
-    if (!userId) return;
-    const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
 }
 
 function records(value: unknown): Record<string, unknown>[] {

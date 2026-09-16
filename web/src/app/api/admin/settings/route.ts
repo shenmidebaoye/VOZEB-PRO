@@ -9,7 +9,6 @@ import { mergeSystemChannelSecrets, serializeAdminSettingsForUser, systemChannel
 import { auditActorFromRequest, safeRecordAuditLog } from "@/lib/server/audit-log-store";
 import { invalidatePublicSiteSettings } from "@/lib/server/site-metadata";
 import { channelProtocolValidationErrors } from "@/lib/channel-protocol-registry";
-import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
 
 export const runtime = "nodejs";
 
@@ -26,23 +25,12 @@ export async function PATCH(request: Request) {
 
     try {
         const body = await readJsonBody<Partial<AuthSettings>>(request);
-        const requiredPermissions = settingsPermissionsForPatch(body);
-        void requiredPermissions;
         const socialValidationError = siteSocialValidationError(body.site?.socials);
         if (socialValidationError) throw new AuthInputError(socialValidationError);
         const currentSettings = await getFreshAuthSettings();
         const patch: Partial<AuthSettings> = {};
         if (body.site) patch.site = body.site;
-        if (typeof body.registrationEnabled === "boolean") patch.registrationEnabled = body.registrationEnabled;
-        if (typeof body.emailRegistrationEnabled === "boolean") patch.emailRegistrationEnabled = body.emailRegistrationEnabled;
-        if (typeof body.freeDailyPointsEnabled === "boolean") patch.freeDailyPointsEnabled = body.freeDailyPointsEnabled;
-        if (typeof body.freeDailyPoints === "number") patch.freeDailyPoints = body.freeDailyPoints;
-        if (body.mail) patch.mail = body.mail;
-        if (body.modelPointCosts && typeof body.modelPointCosts === "object") patch.modelPointCosts = body.modelPointCosts;
-        if (body.generationPointMultipliers && typeof body.generationPointMultipliers === "object") patch.generationPointMultipliers = body.generationPointMultipliers;
-        if (body.generationCostControl && typeof body.generationCostControl === "object") patch.generationCostControl = body.generationCostControl;
         if (body.dataLifecycle && typeof body.dataLifecycle === "object") patch.dataLifecycle = body.dataLifecycle;
-        if (body.entitlements && typeof body.entitlements === "object") patch.entitlements = body.entitlements;
         if (body.generationConcurrency && typeof body.generationConcurrency === "object") patch.generationConcurrency = body.generationConcurrency;
         if (body.generationDefaults && typeof body.generationDefaults === "object") patch.generationDefaults = body.generationDefaults;
         if (Array.isArray(body.systemChannels)) {
@@ -87,35 +75,6 @@ export async function PATCH(request: Request) {
         console.error("Admin settings update failed", error);
         return NextResponse.json({ error: "更新设置失败" }, { status: 500 });
     }
-}
-
-const SETTINGS_PERMISSION_BY_FIELD = {
-    site: "system.manage",
-    registrationEnabled: "system.manage",
-    emailRegistrationEnabled: "system.manage",
-    mail: "system.manage",
-    dataLifecycle: "system.manage",
-    freeDailyPointsEnabled: "billing.manage",
-    freeDailyPoints: "billing.manage",
-    modelPointCosts: "billing.manage",
-    generationPointMultipliers: "billing.manage",
-    entitlements: "billing.manage",
-    generationCostControl: "upstream.manage",
-    generationConcurrency: "upstream.manage",
-    generationDefaults: "upstream.manage",
-    systemChannels: "upstream.manage",
-    logicalModels: "upstream.manage",
-    defaultModels: "upstream.manage",
-    agentSkills: "upstream.manage",
-} as const satisfies Partial<Record<keyof AuthSettings, AdminPermission>>;
-
-function settingsPermissionsForPatch(patch: Partial<AuthSettings>) {
-    const permissions: AdminPermission[] = [];
-    for (const key of Object.keys(patch)) {
-        const permission = SETTINGS_PERMISSION_BY_FIELD[key as keyof typeof SETTINGS_PERMISSION_BY_FIELD];
-        if (permission && !permissions.includes(permission)) permissions.push(permission);
-    }
-    return permissions;
 }
 
 function siteSocialValidationError(socials: Partial<SiteSocialSettings> | undefined) {

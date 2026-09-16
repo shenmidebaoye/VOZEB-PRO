@@ -12,7 +12,6 @@ import { claimVideoTaskPoll, completeReconciledVideoTask, failReconciledVideoTas
 import { writeVideoGenerationLog } from "@/lib/server/video-task-log";
 import { maintenanceWorkerHeaders } from "@/lib/server/maintenance-auth";
 import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
-import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { geminiVideoQueryPath, parseGeminiVideoOperation } from "@/lib/server/gemini-video-provider";
 
 export type VideoUpstreamStep = { state: "pending"; status: string } | { state: "result_ready"; status: string; resultUrl: string } | { state: "failed"; status: string; error: string };
@@ -77,15 +76,10 @@ function taskPollingPolicy(task: VideoTask) {
 
 async function completeVideoTask(task: VideoTask, resultUrl: string, origin: string, cookie: string, workerUserId = "") {
     const beforePersistence = await getVideoTask(task.id);
-    if (!beforePersistence || beforePersistence.status === "cancelled") {
-        if (beforePersistence?.status === "cancelled") await refundVideoTask(beforePersistence);
-        return beforePersistence;
-    }
+    if (!beforePersistence || beforePersistence.status === "cancelled") return beforePersistence;
     task = beforePersistence;
     const attempts = finishGenerationAttempt(task.attempts || [], task.attempts?.at(-1)?.attemptNo || 1, {
         status: "succeeded",
-        pointsCost: task.upstream.pointsCost,
-        pointsRecordId: task.upstream.pointsRecordId,
     });
     await updateVideoTask(task.id, { attempts });
     const channelId = task.config.channelId || systemGenerationChannelId(task.config.baseUrl);
@@ -112,7 +106,6 @@ async function completeVideoTask(task: VideoTask, resultUrl: string, origin: str
     const completed = await completeReconciledVideoTask(task.id, result);
     if (!completed) {
         const latest = await getVideoTask(task.id);
-        if (latest?.status === "cancelled") await refundVideoTask(latest);
         return latest;
     }
     await writeVideoGenerationLog(completed, "success");
@@ -126,7 +119,6 @@ async function failVideoTask(task: VideoTask, error: string, retryable = true) {
     const failed = await failReconciledVideoTask(task.id, error, retryable);
     if (failed) {
         await writeVideoGenerationLog({ ...failed, attempts }, "failed", error, retryable);
-        if (task.status === "running") await refundVideoTask(failed);
     }
     return failed || getVideoTask(task.id);
 }

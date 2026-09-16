@@ -1,7 +1,7 @@
 import type { QueryExecutor } from "@/lib/server/database/postgres";
-import type { AnnouncementRecord, GenerationKind, GenerationLogAssetRecord, GenerationLogRecord, GenerationStatus, PageInput, PageResult, PromptRecord, PromptScope } from "./repository-shared";
+import type { GenerationKind, GenerationLogAssetRecord, GenerationLogRecord, GenerationStatus, PageInput, PageResult, PromptRecord, PromptScope } from "./repository-shared";
 import { CREATE_OVERVIEW_RECENT_ASSET_LIMIT, type CreateOverviewAsset, type CreateOverviewTask } from "@/lib/create-workbench-overview";
-import { mapAnnouncement, mapGenerationLog, mapGenerationLogAsset, mapPrompt } from "./repository-record-mappers";
+import { mapGenerationLog, mapGenerationLogAsset, mapPrompt } from "./repository-record-mappers";
 import { jsonParam, normalizePage, normalizePageSize, pageResult } from "./repository-shared";
 
 export type GenerationLogOverviewBucket = { key: string; value: number };
@@ -16,56 +16,6 @@ export type GenerationLogOverviewAggregate = {
     kinds: GenerationLogOverviewBucket[];
 };
 export type GenerationLogCreateOverview = { runningTasks: CreateOverviewTask[]; recentAssets: CreateOverviewAsset[] };
-
-export class AnnouncementsRepository {
-    constructor(private readonly db: QueryExecutor) {}
-
-    async list(includeDisabled = false) {
-        const result = await this.db.query("SELECT * FROM announcements WHERE ($1::boolean = true OR enabled = true) ORDER BY created_at DESC", [includeDisabled]);
-        return result.rows.map(mapAnnouncement);
-    }
-
-    async getById(id: string, forUpdate = false) {
-        const result = await this.db.query(`SELECT * FROM announcements WHERE id = $1${forUpdate ? " FOR UPDATE" : ""}`, [id]);
-        return result.rows[0] ? mapAnnouncement(result.rows[0]) : null;
-    }
-
-    async upsert(announcement: AnnouncementRecord) {
-        const result = await this.db.query(
-            `
-            INSERT INTO announcements (id, title, content, enabled, popup_home, popup_after_login, starts_at, ends_at, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            ON CONFLICT (id) DO UPDATE SET
-                title = EXCLUDED.title,
-                content = EXCLUDED.content,
-                enabled = EXCLUDED.enabled,
-                popup_home = EXCLUDED.popup_home,
-                popup_after_login = EXCLUDED.popup_after_login,
-                starts_at = EXCLUDED.starts_at,
-                ends_at = EXCLUDED.ends_at
-            RETURNING *
-            `,
-            [
-                announcement.id,
-                announcement.title,
-                announcement.content,
-                announcement.enabled,
-                announcement.popupHome,
-                announcement.popupAfterLogin,
-                announcement.startsAt || null,
-                announcement.endsAt || null,
-                announcement.createdAt,
-                announcement.updatedAt,
-            ],
-        );
-        return mapAnnouncement(result.rows[0]);
-    }
-
-    async delete(id: string) {
-        const result = await this.db.query("DELETE FROM announcements WHERE id = $1", [id]);
-        return result.rowCount || 0;
-    }
-}
 
 export class PromptsRepository {
     constructor(private readonly db: QueryExecutor) {}

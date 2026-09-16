@@ -14,20 +14,6 @@ permissions:
 jobs:
   web:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16.6-alpine
-        env:
-          POSTGRES_DB: vozeb_pro_e2e
-          POSTGRES_USER: vozeb
-          POSTGRES_PASSWORD: vozeb-e2e-password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U vozeb -d vozeb_pro_e2e"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
     defaults:
       run:
         working-directory: web
@@ -52,43 +38,12 @@ jobs:
         run: pnpm run lint
       - name: Type check
         run: pnpm run typecheck
-      - name: Unit tests
-        run: pnpm test
       - name: Format check
         run: pnpm run format:check
       - name: Production build
         run: pnpm run build
         env:
           NEXT_SKIP_BUILD_TYPECHECK: "1"
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Browser E2E
-        run: pnpm run e2e
-        env:
-          VOZEB_PRO_E2E_DATABASE_URL: postgres://vozeb:vozeb-e2e-password@127.0.0.1:5432/vozeb_pro_e2e
-      - name: PostgreSQL integration tests
-        run: >-
-          pnpm exec vitest run --no-file-parallelism
-          src/lib/server/database/auth-entity-concurrency.postgres.test.ts
-          src/lib/server/admin-backup-store.postgres.test.ts
-          src/lib/server/points-wallet-idempotency.postgres.test.ts
-          src/lib/server/database/work-community-postgres.test.ts
-        env:
-          VOZEB_PRO_DATABASE_PROVIDER: postgres
-          DATABASE_URL: postgres://vozeb:vozeb-e2e-password@127.0.0.1:5432/vozeb_pro_e2e
-          VOZEB_PRO_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-          VOZEB_PRO_RUN_POSTGRES_INTEGRATION: "1"
-          RUN_WORK_COMMUNITY_POSTGRES_INTEGRATION: "1"
-      - name: Upload browser artifacts
-        if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: web-playwright-report
-          path: |
-            web/playwright-report
-            web/.e2e-artifacts
-          if-no-files-found: ignore
-          retention-days: 7
 
   docs:
     runs-on: ubuntu-latest

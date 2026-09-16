@@ -1,155 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled } from "@/lib/server/database";
+import { type UserRole, type UserStatus, type PublicUser, type PublicUserSummary } from "./store-types";
+import { readAuthDb } from "./store-repository";
+import { normalizeText } from "./store-normalizers";
+import { matchesPublicUser, summarizePublicUsers, toPublicUser } from "./store-user-projection";
 
-import { inferModelCapability } from "@/lib/model-capability";
-import { lockAuthMutation } from "@/lib/server/auth-mutation-lock";
-import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction } from "@/lib/server/database";
-import { walletClock } from "@/lib/server/wallet-clock";
-import { decryptSecretValue, encryptSecretValue } from "@/lib/server/secret-crypto";
-import {
-    type UserRole,
-    type UserStatus,
-    type ApiCallFormat,
-    type SystemChannelProtocol,
-    type SystemChannelAdvancedConfig,
-    type LegacyUserQuota,
-    type ModelPointCosts,
-    type PointUsageKind,
-    type SystemModelChannel,
-    type LogicalModelCapability,
-    type LogicalModelCapabilityProfile,
-    type LogicalModelBinding,
-    type LogicalModel,
-    type SystemDefaultModels,
-    type AgentSkill,
-    type GenerationConcurrencySettings,
-    type GenerationDefaultSettings,
-    type GenerationPointMultipliers,
-    type EntitlementPlanLimits,
-    type EntitlementPlan,
-    type EntitlementSettings,
-    type CdkStatus,
-    type PublicCdkRedemption,
-    type PublicCdkCode,
-    type CreatedCdkCode,
-    type StoredCdkRedemption,
-    type StoredCdkCode,
-    type PublicAnnouncement,
-    type AnnouncementPage,
-    type AnnouncementPageInput,
-    type SiteSettings,
-    type SiteFriendLink,
-    type SiteSocialKey,
-    type SiteSocialSettings,
-    DEFAULT_SITE_SOCIALS,
-    DEFAULT_SITE_FRIEND_LINKS,
-    type MailSettings,
-    type PublicUser,
-    type PublicUserSummary,
-    type StoredSession,
-    type PublicPointRecord,
-    type StoredPointRecord,
-    type StoredQuotaUsage,
-    type StoredEmailCode,
-    type AuthDatabase,
-} from "./store-types";
-import {
-    AuthInputError,
-    EmailCodeAttemptError,
-    QuotaExceededError,
-    isAuthInputError,
-    isQuotaExceededError,
-    SESSION_MAX_AGE_SECONDS,
-    DEFAULT_MODEL_POINT_COST_KEY,
-    DEFAULT_SITE_SETTINGS,
-    DEFAULT_MAIL_SETTINGS,
-    DEFAULT_GENERATION_POINT_MULTIPLIERS,
-    DEFAULT_ENTITLEMENT_LIMITS,
-    DEFAULT_ENTITLEMENT_PLAN_ID,
-    DEFAULT_SETTINGS,
-    AUTH_DATA_FILE,
-    USERNAME_PATTERN,
-} from "./store-foundation";
-import { readAuthDb, mutateAuthDb, readPostgresAnnouncementsPage, readPostgresCdkListData } from "./store-repository";
-
-import {
-    normalizeDb,
-    emptyDb,
-    encryptAuthDbSecretsForStorage,
-    decryptAuthSettingsSecrets,
-    encryptAuthSettingsSecrets,
-    resolveDefaultPlan,
-    resolveUserPlan,
-    assertEntitlementUsageAllowed,
-    recordQuotaUsage,
-    findQuotaUsage,
-    assertDailyLimit,
-    resolveDailyUsageLimit,
-    dailyUsageLimitLabel,
-    normalizeLogicalModels,
-    deriveLogicalModels,
-    normalizeAgentSkill,
-    normalizeAgentSkills,
-    normalizeGenerationDefaults,
-    allowedText,
-    normalizeEntitlementSettings,
-    normalizeEntitlementPlan,
-    normalizeEntitlementLimits,
-    normalizePlanId,
-    normalizeFeatureList,
-    normalizeGenerationConcurrency,
-    normalizeSiteSettings,
-    normalizeSiteFriendLinks,
-    normalizeSiteSocials,
-    normalizeSiteSocial,
-    normalizeMailSettings,
-    normalizeSecretText,
-    normalizeText,
-    repairKnownMojibakeText,
-    repairUtf8MojibakeText,
-    looksLikeUtf8Mojibake,
-    textQualityScore,
-    normalizeLogoUrl,
-    normalizeLinkUrl,
-    normalizeSystemChannel,
-    normalizeSystemChannelAdvancedConfig,
-    normalizeApiPath,
-    textOrEmpty,
-    normalizePoints,
-    normalizePointAmount,
-    normalizePointMultiplier,
-    normalizeModelPointCosts,
-    normalizeGenerationPointMultipliers,
-    normalizeMultiplierMap,
-    resolveModelPointCost,
-    buildPointRecordDescription,
-    legacyQuotaToPoints,
-    normalizeQuotaUsage,
-    toPublicCdkCode,
-    isCdkCodeExpired,
-    normalizeCdkCodeRecord,
-    normalizeCdkCode,
-    generateCdkPlainCode,
-    formatCdkCodeForDisplay,
-    previewCdkCode,
-    normalizeAnnouncement,
-    isAnnouncementVisible,
-    normalizeOptionalIsoDate,
-    resolveCdkExpiresAt,
-    normalizePointRecord,
-    addPointRecord,
-    normalizeEmailCode,
-    consumeEmailCode,
-    hashToken,
-} from "./store-normalizers";
-import { matchesPublicUser, publicUserFromAuthenticatedRecord, summarizePublicUsers, toPublicUser } from "./store-user-projection";
-import { getAuthSettings } from "./store-settings-actions";
-
-export { authenticateUser, createEmailVerificationCode, createFirstAdmin, createUser, createUserByAdmin } from "./store-user-access";
 export { toPublicUser };
-
-export function sessionMaxAgeSeconds() {
-    return SESSION_MAX_AGE_SECONDS;
-}
 
 export { getAuthSettings, getFreshAuthSettings, setAuthSettings } from "./store-settings-actions";
 
@@ -168,15 +23,9 @@ export async function listPublicUsersPage(input?: { page?: number; pageSize?: nu
     if (isPostgresDatabaseEnabled()) {
         await ensurePostgresSchema();
         const repos = createPostgresRepositories();
-        const clock = walletClock();
-        const [result, summary] = await Promise.all([repos.users.list({ page, pageSize, keyword, role: input?.role, status: input?.status }), repos.users.summarize({ now: clock.now.toISOString(), date: clock.date })]);
-        const details = await repos.users.getPublicDetails(
-            result.items.map((user) => user.id),
-            { now: clock.now.toISOString(), date: clock.date },
-        );
-        const usersById = new Map(details.map((record) => [record.user.id, publicUserFromAuthenticatedRecord(record, clock.expiresAt)]));
+        const [result, summary] = await Promise.all([repos.users.list({ page, pageSize, keyword, status: input?.status }), repos.users.summarize()]);
         return {
-            users: result.items.map((user) => usersById.get(user.id)).filter((user): user is PublicUser => Boolean(user)),
+            users: result.items.map((user) => toPublicUser(user)),
             total: result.total,
             page: result.page,
             pageSize: result.pageSize,
@@ -184,8 +33,10 @@ export async function listPublicUsersPage(input?: { page?: number; pageSize?: nu
         };
     }
     const db = await readAuthDb();
-    const publicUsers = db.users.map((user) => toPublicUser(user, db)).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-    const filtered = publicUsers.filter((user) => matchesPublicUser(user, { keyword, role: input?.role, status: input?.status }));
+    const filtered = db.users
+        .filter((user) => matchesPublicUser(user, { keyword, role: input?.role, status: input?.status }))
+        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+        .map((user) => toPublicUser(user));
     const total = filtered.length;
     const safePage = Math.min(page, Math.max(1, Math.ceil(total / pageSize)));
     return {
@@ -193,21 +44,17 @@ export async function listPublicUsersPage(input?: { page?: number; pageSize?: nu
         total,
         page: safePage,
         pageSize,
-        summary: summarizePublicUsers(publicUsers, db.settings.entitlements.defaultPlanId),
+        summary: summarizePublicUsers(db.users),
     };
 }
 
 export async function getPublicUserSummary(): Promise<PublicUserSummary> {
     if (isPostgresDatabaseEnabled()) {
         await ensurePostgresSchema();
-        const clock = walletClock();
-        return createPostgresRepositories().users.summarize({ now: clock.now.toISOString(), date: clock.date });
+        return createPostgresRepositories().users.summarize();
     }
     const db = await readAuthDb();
-    return summarizePublicUsers(
-        db.users.map((user) => toPublicUser(user, db)),
-        db.settings.entitlements.defaultPlanId,
-    );
+    return summarizePublicUsers(db.users);
 }
 
 export async function getPublicUsersByIds(userIds: string[]): Promise<PublicUser[]> {
@@ -215,13 +62,12 @@ export async function getPublicUsersByIds(userIds: string[]): Promise<PublicUser
     if (!ids.length) return [];
     if (isPostgresDatabaseEnabled()) {
         await ensurePostgresSchema();
-        const clock = walletClock();
-        const records = await createPostgresRepositories().users.getPublicDetails(ids, { now: clock.now.toISOString(), date: clock.date });
-        return records.map((record) => publicUserFromAuthenticatedRecord(record, clock.expiresAt));
+        const records = await createPostgresRepositories().users.getPublicDetails(ids);
+        return records.map((user) => toPublicUser(user));
     }
     const db = await readAuthDb();
     const idSet = new Set(ids);
-    return db.users.filter((user) => idSet.has(user.id)).map((user) => toPublicUser(user, db));
+    return db.users.filter((user) => idSet.has(user.id)).map((user) => toPublicUser(user));
 }
 
 export async function findPublicUserIdsByKeyword(value: string, limit?: number): Promise<string[]> {
@@ -235,425 +81,6 @@ export async function findPublicUserIdsByKeyword(value: string, limit?: number):
         return result.items.map((user) => user.id);
     }
     const db = await readAuthDb();
-    const matches = db.users
-        .map((user) => toPublicUser(user, db))
-        .filter((user) => matchesPublicUser(user, { keyword }))
-        .map((user) => user.id);
+    const matches = db.users.filter((user) => matchesPublicUser(user, { keyword })).map((user) => user.id);
     return requestedLimit ? matches.slice(0, requestedLimit) : matches;
 }
-
-export type PointRecordListResult = {
-    records: PublicPointRecord[];
-    total: number;
-    page: number;
-    pageSize: number;
-};
-
-export async function listPointRecordsPage(userId: string, input?: { page?: number; pageSize?: number; direction?: "credit" | "debit" }): Promise<PointRecordListResult> {
-    const pageSize = Math.max(1, Math.min(50, Math.floor(Number(input?.pageSize) || 10)));
-    const page = Math.max(1, Math.floor(Number(input?.page) || 1));
-    const direction = input?.direction === "credit" || input?.direction === "debit" ? input.direction : undefined;
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        const result = await createPostgresRepositories().points.listRecords(userId, { page, pageSize, direction });
-        return {
-            records: result.items.map(toPublicPointRecord),
-            total: result.total,
-            page: result.page,
-            pageSize: result.pageSize,
-        };
-    }
-    const db = await readAuthDb();
-    const records = (db.pointRecords || [])
-        .filter((record) => record.userId === userId && (!direction || (direction === "credit" ? record.amount > 0 : record.amount < 0)))
-        .map(toPublicPointRecord)
-        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-    const total = records.length;
-    const safePage = Math.min(page, Math.max(1, Math.ceil(total / pageSize)));
-    const start = (safePage - 1) * pageSize;
-    return {
-        records: records.slice(start, start + pageSize),
-        total,
-        page: safePage,
-        pageSize,
-    };
-}
-
-export type CdkListFilter = "all" | "redeemed" | "unused" | "expired";
-
-export type CdkListResult = {
-    codes: PublicCdkCode[];
-    total: number;
-    page: number;
-    pageSize: number;
-    stats: {
-        total: number;
-        redeemed: number;
-        unused: number;
-        expired: number;
-    };
-};
-
-type PostgresRepositories = ReturnType<typeof createPostgresRepositories>;
-type PostgresCdkDetails = NonNullable<Awaited<ReturnType<PostgresRepositories["cdk"]["getDetailsById"]>>>;
-
-export async function listCdkCodes(input?: { page?: number; pageSize?: number; keyword?: string; filter?: CdkListFilter }): Promise<CdkListResult> {
-    const keyword = normalizeText(input?.keyword, "", 120).toLowerCase();
-    const filter = input?.filter === "redeemed" || input?.filter === "unused" || input?.filter === "expired" ? input.filter : "all";
-    const pageSize = Math.max(1, Math.min(100, Math.floor(Number(input?.pageSize) || 20)));
-    const page = Math.max(1, Math.floor(Number(input?.page) || 1));
-    if (isPostgresDatabaseEnabled()) {
-        const db = await readPostgresCdkListData({ page, pageSize, keyword, filter, codeHash: keyword ? hashToken(normalizeCdkCode(keyword)) : "" });
-        return {
-            codes: db.cdkCodes.map((code) => toPublicCdkCode(code, db, { includePlain: true })),
-            total: db.total,
-            page: db.page,
-            pageSize: db.pageSize,
-            stats: db.stats,
-        };
-    }
-    const db = await readAuthDb();
-    const allCodes = db.cdkCodes
-        .filter((code) => code.status === "active" && Boolean(code.code))
-        .map((code) => toPublicCdkCode(code, db, { includePlain: true }))
-        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-    const stats = {
-        total: allCodes.length,
-        redeemed: allCodes.filter((code) => code.redeemedCount > 0).length,
-        unused: allCodes.filter((code) => !isCdkCodeExpired(code) && code.redeemedCount <= 0).length,
-        expired: allCodes.filter(isCdkCodeExpired).length,
-    };
-    const filtered = allCodes.filter((code) => {
-        const matchedFilter = filter === "all" || (filter === "redeemed" && code.redeemedCount > 0) || (filter === "unused" && !isCdkCodeExpired(code) && code.redeemedCount <= 0) || (filter === "expired" && isCdkCodeExpired(code));
-        if (!matchedFilter) return false;
-        if (!keyword) return true;
-        const redemptionsText = code.redemptions.map((item) => `${item.accountId || ""} ${item.username} ${item.displayName}`).join(" ");
-        return [code.code || "", code.note, redemptionsText].some((value) => value.toLowerCase().includes(keyword));
-    });
-    const total = filtered.length;
-    const safePage = Math.min(page, Math.max(1, Math.ceil(total / pageSize)));
-    const start = (safePage - 1) * pageSize;
-    return {
-        codes: filtered.slice(start, start + pageSize),
-        total,
-        page: safePage,
-        pageSize,
-        stats,
-    };
-}
-
-function publicPostgresCdkCode(item: PostgresCdkDetails, includePlain = false) {
-    const stored: StoredCdkCode = {
-        id: item.id,
-        codeHash: item.codeHash,
-        code: decryptSecretValue(item.codeCiphertext) || undefined,
-        codePreview: item.codePreview,
-        points: item.points,
-        maxRedemptions: item.maxRedemptions,
-        redeemedCount: item.redeemedCount,
-        redemptions: item.redemptions.map((redemption) => ({ userId: redemption.userId, redeemedAt: redemption.redeemedAt })),
-        status: item.status,
-        note: item.note,
-        expiresAt: item.expiresAt,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-    };
-    return toPublicCdkCode(
-        stored,
-        {
-            users: item.redemptions.map((redemption) => ({
-                id: redemption.userId,
-                accountId: redemption.accountId,
-                username: redemption.username || "已删除用户",
-                displayName: redemption.displayName || redemption.username || "已删除用户",
-            })),
-        },
-        { includePlain },
-    );
-}
-
-export async function createCdkCodes(input: { count?: number; points?: number; maxRedemptions?: number; expiresAt?: string; expiresInDays?: number; note?: string }) {
-    const count = Math.max(1, Math.min(100, Math.floor(Number(input.count) || 1)));
-    const points = normalizePoints(input.points, 10);
-    const maxRedemptions = Math.max(1, Math.min(10000, Math.floor(Number(input.maxRedemptions) || 1)));
-    const expiresAt = resolveCdkExpiresAt(input.expiresAt, input.expiresInDays);
-    const note = normalizeText(input.note, "", 120);
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        return withPostgresTransaction(async (client) => {
-            await lockAuthMutation(client);
-            const cdk = createPostgresRepositories(client).cdk;
-            const now = new Date().toISOString();
-            const created: CreatedCdkCode[] = [];
-            for (let index = 0; index < count; index += 1) {
-                const id = randomUUID();
-                const code = generateCdkPlainCode(id);
-                const publicCode: CreatedCdkCode = {
-                    id,
-                    codePreview: previewCdkCode(code),
-                    code,
-                    points,
-                    maxRedemptions,
-                    redeemedCount: 0,
-                    redemptions: [],
-                    status: "active",
-                    note,
-                    ...(expiresAt ? { expiresAt } : {}),
-                    createdAt: now,
-                    updatedAt: now,
-                };
-                await cdk.create({
-                    ...publicCode,
-                    codeHash: hashToken(normalizeCdkCode(code)),
-                    codeCiphertext: encryptSecretValue(code),
-                });
-                created.push(publicCode);
-            }
-            return created;
-        });
-    }
-    return mutateAuthDb((db) => {
-        const now = new Date().toISOString();
-        const created: CreatedCdkCode[] = [];
-        for (let index = 0; index < count; index += 1) {
-            const id = randomUUID();
-            const code = generateCdkPlainCode(id);
-            const publicCode: PublicCdkCode = {
-                id,
-                codePreview: previewCdkCode(code),
-                code,
-                points,
-                maxRedemptions,
-                redeemedCount: 0,
-                redemptions: [],
-                status: "active",
-                note,
-                ...(expiresAt ? { expiresAt } : {}),
-                createdAt: now,
-                updatedAt: now,
-            };
-            db.cdkCodes.push({
-                ...publicCode,
-                codeHash: hashToken(normalizeCdkCode(code)),
-                redemptions: [],
-            });
-            created.push({ ...publicCode, code });
-        }
-        return created;
-    });
-}
-
-export async function updateCdkCode(id: string, patch: Partial<Pick<PublicCdkCode, "status" | "note" | "expiresAt" | "points" | "maxRedemptions">>) {
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        return withPostgresTransaction(async (client) => {
-            const cdk = createPostgresRepositories(client).cdk;
-            const item = await cdk.getDetailsById(id, true);
-            if (!item) throw new AuthInputError("CDK 不存在");
-            const expiresAt = patch.expiresAt === undefined ? item.expiresAt : normalizeOptionalIsoDate(patch.expiresAt);
-            const updated = await cdk.update({
-                ...item,
-                status: patch.status ? (patch.status === "active" ? "active" : "disabled") : item.status,
-                note: patch.note === undefined ? item.note : normalizeText(patch.note, "", 120),
-                points: patch.points === undefined ? item.points : normalizePoints(patch.points, item.points),
-                maxRedemptions: patch.maxRedemptions === undefined ? item.maxRedemptions : Math.max(item.redeemedCount, Math.min(10000, Math.max(1, Math.floor(Number(patch.maxRedemptions) || item.maxRedemptions)))),
-                ...(expiresAt ? { expiresAt } : { expiresAt: undefined }),
-                updatedAt: new Date().toISOString(),
-            });
-            if (!updated) throw new AuthInputError("CDK 不存在");
-            return publicPostgresCdkCode({ ...item, ...updated }, true);
-        });
-    }
-    return mutateAuthDb((db) => {
-        const item = db.cdkCodes.find((code) => code.id === id);
-        if (!item) throw new AuthInputError("CDK 不存在");
-        if (patch.status) item.status = patch.status === "active" ? "active" : "disabled";
-        if (patch.note !== undefined) item.note = normalizeText(patch.note, "", 120);
-        if (patch.expiresAt !== undefined) {
-            const expiresAt = normalizeOptionalIsoDate(patch.expiresAt);
-            if (expiresAt) item.expiresAt = expiresAt;
-            else delete item.expiresAt;
-        }
-        if (patch.points !== undefined) item.points = normalizePoints(patch.points, item.points);
-        if (patch.maxRedemptions !== undefined) item.maxRedemptions = Math.max(item.redeemedCount, Math.min(10000, Math.max(1, Math.floor(Number(patch.maxRedemptions) || item.maxRedemptions))));
-        item.updatedAt = new Date().toISOString();
-        return toPublicCdkCode(item, db, { includePlain: true });
-    });
-}
-
-export async function deleteCdkCode(id: string) {
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        const deleted = await createPostgresRepositories().cdk.delete([id]);
-        if (!deleted) throw new AuthInputError("CDK 不存在");
-        return { ok: true, deleted };
-    }
-    return mutateAuthDb((db) => {
-        const index = db.cdkCodes.findIndex((code) => code.id === id);
-        if (index < 0) throw new AuthInputError("CDK 不存在");
-        db.cdkCodes.splice(index, 1);
-        return { ok: true, deleted: 1 };
-    });
-}
-
-export async function deleteCdkCodes(ids: string[]) {
-    const deletingIds = Array.from(new Set(ids.map((id) => normalizeText(id, "", 80)).filter(Boolean)));
-    if (!deletingIds.length) throw new AuthInputError("请选择要删除的 CDK");
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        return { ok: true, deleted: await createPostgresRepositories().cdk.delete(deletingIds) };
-    }
-    return mutateAuthDb((db) => {
-        const before = db.cdkCodes.length;
-        db.cdkCodes = db.cdkCodes.filter((code) => !deletingIds.includes(code.id));
-        return { ok: true, deleted: before - db.cdkCodes.length };
-    });
-}
-
-export async function redeemCdkCode(_userId: string, _rawCode: string): Promise<never> {
-    throw new AuthInputError("本机工具已移除 CDK 兑换", 410);
-}
-
-export async function listAnnouncements(includeDisabled = false) {
-    return (await listAnnouncementsPage(includeDisabled, { page: 1, pageSize: 100 })).items;
-}
-
-export async function listAnnouncementsPage(includeDisabled = false, input: AnnouncementPageInput = {}): Promise<AnnouncementPage> {
-    const requestedPage = Number(input.page);
-    const requestedPageSize = Number(input.pageSize);
-    const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-    const pageSize = Number.isSafeInteger(requestedPageSize) && requestedPageSize > 0 ? Math.min(100, requestedPageSize) : 20;
-    if (isPostgresDatabaseEnabled()) return readPostgresAnnouncementsPage({ includeDisabled, page, pageSize });
-
-    const announcements = (await readAuthDb()).announcements.filter((announcement) => includeDisabled || isAnnouncementVisible(announcement)).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id.localeCompare(a.id));
-    return {
-        items: announcements.slice((page - 1) * pageSize, page * pageSize),
-        total: announcements.length,
-        page,
-        pageSize,
-    };
-}
-
-export async function createAnnouncement(input: Partial<PublicAnnouncement>) {
-    const now = new Date().toISOString();
-    const announcement = normalizeAnnouncement({
-        id: randomUUID(),
-        title: input.title || "",
-        content: input.content || "",
-        enabled: input.enabled !== false,
-        popupHome: input.popupHome === true,
-        popupAfterLogin: input.popupAfterLogin === true,
-        startsAt: input.startsAt,
-        endsAt: input.endsAt,
-        createdAt: now,
-        updatedAt: now,
-    });
-    if (!announcement.title || !announcement.content) throw new AuthInputError("请填写公告标题和内容");
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        return createPostgresRepositories().announcements.upsert(announcement);
-    }
-    return mutateAuthDb((db) => {
-        db.announcements.push(announcement);
-        return announcement;
-    });
-}
-
-export async function updateAnnouncement(id: string, patch: Partial<PublicAnnouncement>) {
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        return withPostgresTransaction(async (client) => {
-            const announcements = createPostgresRepositories(client).announcements;
-            const current = await announcements.getById(id, true);
-            if (!current) throw new AuthInputError("公告不存在");
-            const next = normalizeAnnouncement({ ...current, ...patch, id, updatedAt: new Date().toISOString() });
-            if (!next.title || !next.content) throw new AuthInputError("请填写公告标题和内容");
-            return announcements.upsert(next);
-        });
-    }
-    return mutateAuthDb((db) => {
-        const index = db.announcements.findIndex((announcement) => announcement.id === id);
-        if (index < 0) throw new AuthInputError("公告不存在");
-        const next = normalizeAnnouncement({
-            ...db.announcements[index],
-            ...patch,
-            id,
-            updatedAt: new Date().toISOString(),
-        });
-        if (!next.title || !next.content) throw new AuthInputError("请填写公告标题和内容");
-        db.announcements[index] = next;
-        return next;
-    });
-}
-
-export async function deleteAnnouncement(id: string) {
-    if (isPostgresDatabaseEnabled()) {
-        await ensurePostgresSchema();
-        if (!(await createPostgresRepositories().announcements.delete(id))) throw new AuthInputError("公告不存在");
-        return { ok: true };
-    }
-    return mutateAuthDb((db) => {
-        const before = db.announcements.length;
-        db.announcements = db.announcements.filter((announcement) => announcement.id !== id);
-        if (before === db.announcements.length) throw new AuthInputError("公告不存在");
-        return { ok: true };
-    });
-}
-
-export function toPublicPointRecord(record: StoredPointRecord): PublicPointRecord {
-    const publicRecord = { ...record };
-    delete publicRecord.requestFingerprint;
-    return { ...publicRecord, description: displayPointRecordDescription(record) };
-}
-
-export function displayPointRecordDescription(record: StoredPointRecord) {
-    const description = record.description.trim();
-    const model = (record.model || "").trim();
-    if (!model) return description;
-    if (record.type === "consume") {
-        return buildPointRecordDescription(model, legacyPointUsageKindFromModel(model), "consume");
-    }
-    if (record.type === "admin-adjust" && record.amount > 0) {
-        return buildPointRecordDescription(model, legacyPointUsageKindFromModel(model), "refund");
-    }
-    return description;
-}
-
-export function legacyPointUsageKindFromModel(model: string): PointUsageKind {
-    const capability = inferModelCapability(model);
-    if (capability !== "text") return capability;
-    return "api";
-}
-
-export async function consumeUserPoints(userId: string, model: string, amount = 1, usageKind: PointUsageKind = "api", idempotencyKey?: string, _requestFingerprint?: string) {
-    const normalizedModel = model.trim();
-    const units = Math.min(1000, normalizePointAmount(amount, 1));
-    return {
-        model: normalizedModel,
-        units,
-        multiplier: 0,
-        cost: 0,
-        remaining: 0,
-        permanentRemaining: 0,
-        dailyRemaining: 0,
-        dailyExpiresAt: new Date(0).toISOString(),
-        usageKind,
-        planId: DEFAULT_ENTITLEMENT_PLAN_ID,
-        recordId: idempotencyKey?.trim() || `noop:${userId}:${randomUUID()}`,
-        idempotencyKey: idempotencyKey?.trim() || undefined,
-    };
-}
-
-export async function refundUserPoints(userId: string, _model: string, _amount: number, _usageKind: PointUsageKind = "api", _units = 0, _idempotencyKey?: string, _sourceRecordId?: string) {
-    if (isPostgresDatabaseEnabled()) {
-        const clock = walletClock();
-        const details = await createPostgresRepositories().users.getPublicDetails([userId], { now: clock.now.toISOString(), date: clock.date });
-        const user = details[0];
-        return user ? publicUserFromAuthenticatedRecord(user, clock.expiresAt) : null;
-    }
-    const db = await readAuthDb();
-    const user = db.users.find((item) => item.id === userId);
-    return user ? toPublicUser(user, db) : null;
-}
-
-export { createSession, deleteSession, deleteUserByAdmin, getUserBySession, resetPasswordByEmail, updateOwnPassword, updateOwnProfile, updateUserByAdmin, verifyUserPasswordForSensitiveAction } from "./store-account-actions";

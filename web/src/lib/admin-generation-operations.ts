@@ -54,7 +54,7 @@ export type AdminGenerationTask = {
         fallbackReason?: string;
     };
     agentFailure?: {
-        stage: "planning" | "task_execution" | "refund";
+        stage: "planning" | "task_execution";
         message: string;
         candidates: Array<{ channelId: string; upstreamModel: string; error: string }>;
     };

@@ -49,7 +49,6 @@ COPY --from=web-build /app/web/public /app/web/public
 COPY --from=web-build /app/web/.next/standalone /app/web
 COPY --from=web-build /app/web/.next/static /app/web/.next/static
 COPY --from=web-build /app/sharp-runtime/node_modules/.pnpm /app/web/node_modules/.pnpm
-COPY web/scripts/reset-admin-password.mjs /app/web/scripts/reset-admin-password.mjs
 COPY web/scripts/generation-runtime.mjs /app/web/scripts/generation-runtime.mjs
 COPY web/scripts/generation-worker-policy.mjs /app/web/scripts/generation-worker-policy.mjs
 COPY web/scripts/generation-worker.mjs /app/web/scripts/generation-worker.mjs

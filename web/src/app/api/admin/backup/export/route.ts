@@ -26,10 +26,6 @@ export async function POST(request: Request) {
                 auth: sanitizeAuthBackup(data.auth),
                 prompts: data.prompts,
                 generationLogs: data.generationLogs,
-                accountDeletionRequests: {
-                    version: 1,
-                    requests: data.accountDeletionRequests.requests.map(({ email: _email, ...item }) => item),
-                },
             },
         };
         await safeRecordAuditLog({

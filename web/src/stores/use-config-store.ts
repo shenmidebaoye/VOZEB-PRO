@@ -8,7 +8,6 @@ import { flattenPublicCapabilityModels, resolvePublicCapabilityModels } from "@/
 import type { GlobalAiOpcPresetId } from "@/lib/globalaiopc-catalog";
 import { resolveChannelModelAdvancedConfig } from "@/lib/channel-protocol-registry";
 import { inferModelCapability, normalizeModelId } from "@/lib/model-capability";
-import { materializeLogicalModelPointCosts } from "@/lib/model-point-cost";
 import type { LogicalModelCapabilityProfile } from "@/lib/auth/store-types";
 
 type ApiCallFormat = "openai" | "gemini";
@@ -107,16 +106,8 @@ export type AiConfig = {
     size: string;
     count: string;
     canvasImageCount: string;
-    modelPointCosts: Record<string, number>;
-    generationPointMultipliers: GenerationPointMultipliers;
     generationConcurrency: GenerationConcurrencySettings;
     advancedConfig?: SystemChannelAdvancedConfig;
-};
-
-type GenerationPointMultipliers = {
-    imageQuality: Record<string, number>;
-    videoQuality: Record<string, number>;
-    videoSeconds: Record<string, number>;
 };
 
 type GenerationConcurrencySettings = {
@@ -129,8 +120,6 @@ type GenerationConcurrencySettings = {
 };
 
 export type PublicSystemSettings = {
-    modelPointCosts?: Record<string, number>;
-    generationPointMultipliers?: GenerationPointMultipliers;
     generationConcurrency?: GenerationConcurrencySettings;
     generationDefaults?: {
         canvasImageCount?: number;
@@ -187,12 +176,6 @@ export const defaultConfig: AiConfig = {
     size: "1:1",
     count: "1",
     canvasImageCount: "1",
-    modelPointCosts: {},
-    generationPointMultipliers: {
-        imageQuality: { auto: 1, low: 1, medium: 1, high: 1 },
-        videoQuality: { "480": 1, "720": 1, "1080": 1 },
-        videoSeconds: { "-1": 1, "5": 1, "10": 1 },
-    },
     generationConcurrency: { agent: 2, image: 4, video: 1, audio: 2, text: 4, render: 1 },
 };
 
@@ -283,8 +266,6 @@ export function applyPublicSystemSettings(config: AiConfig, settings?: PublicSys
         model: imageModel || textModel || videoModel || audioModel || "",
         systemPrompt: "",
         audioInstructions: "",
-        modelPointCosts: materializeLogicalModelPointCosts(settings?.modelPointCosts, logicalModels),
-        generationPointMultipliers: normalizeGenerationPointMultipliers(settings?.generationPointMultipliers),
         generationConcurrency: normalizeGenerationConcurrency(settings?.generationConcurrency),
         canvasImageCount: normalizeCanvasImageCount(settings?.generationDefaults?.canvasImageCount),
         size: settings?.generationDefaults?.imageSize || defaultConfig.size,
@@ -311,31 +292,6 @@ export const useConfigStore = create<ConfigStore>()((set) => ({
     setConfigDialogOpen: (isOpen) => set({ isConfigOpen: isOpen, shouldPromptContinue: false }),
     clearPromptContinue: () => set({ shouldPromptContinue: false }),
 }));
-
-function normalizePointCost(value: unknown) {
-    const numberValue = Number(value);
-    if (!Number.isFinite(numberValue) || numberValue < 0) return 0;
-    return Number(numberValue.toFixed(2));
-}
-
-function normalizeGenerationPointMultipliers(settings?: Partial<GenerationPointMultipliers>) {
-    return {
-        imageQuality: normalizeMultiplierMap(settings?.imageQuality, defaultConfig.generationPointMultipliers.imageQuality),
-        videoQuality: normalizeMultiplierMap(settings?.videoQuality, defaultConfig.generationPointMultipliers.videoQuality),
-        videoSeconds: normalizeMultiplierMap(settings?.videoSeconds, defaultConfig.generationPointMultipliers.videoSeconds),
-    };
-}
-
-function normalizeMultiplierMap(settings: Record<string, unknown> | undefined, defaults: Record<string, number>) {
-    return {
-        ...defaults,
-        ...Object.fromEntries(
-            Object.entries(settings || {})
-                .map(([key, value]) => [key.trim(), normalizePointCost(value)] as const)
-                .filter(([key]) => Boolean(key)),
-        ),
-    };
-}
 
 function normalizeGenerationConcurrency(settings?: Partial<GenerationConcurrencySettings>) {
     return {

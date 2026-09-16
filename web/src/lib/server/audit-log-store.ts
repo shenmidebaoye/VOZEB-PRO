@@ -4,7 +4,6 @@ import type { PublicUser, UserRole } from "@/lib/auth/store";
 import { ensurePostgresSchema, isPostgresDatabaseEnabled, postgresQuery, type QueryExecutor } from "@/lib/server/database";
 import { readJsonDataFile, writeJsonDataFile } from "@/lib/server/data-adapter";
 import { getClientIp } from "@/lib/server/security";
-import type { LoginSecurityNotice, UserLoginEvent } from "@/lib/login-security";
 
 type AuditLogStatus = "success" | "failure";
 
@@ -64,11 +63,10 @@ const SECRET_KEY_PATTERN = /api.?key|authorization|cookie|password|secret|token|
 
 let mutationQueue = Promise.resolve();
 
-export function auditActorFromRequest(request: Request, user?: Partial<Pick<PublicUser, "id" | "username" | "role">> | null): AuditLogActor {
+export function auditActorFromRequest(request: Request, user?: Partial<Pick<PublicUser, "id" | "username">> | null): AuditLogActor {
     return {
         id: user?.id,
         username: user?.username,
-        role: user?.role,
         ip: normalizeText(getClientIp(request), "", 120),
         userAgent: normalizeText(request.headers.get("user-agent") || "", "", 300),
     };
@@ -110,44 +108,6 @@ export async function safeRecordAuditLog(input: AuditLogInput) {
         console.error("Audit log write failed", error);
         return null;
     }
-}
-
-export async function safeGetLoginSecurityNotice(userId: string, current: { ip?: string; userAgent?: string }): Promise<LoginSecurityNotice | undefined> {
-    try {
-        const previous = (await listUserLoginEvents(userId, { page: 1, pageSize: 1 })).items[0];
-        return loginSecurityNoticeFrom(previous, current);
-    } catch (error) {
-        console.error("Login security context read failed", error);
-        return undefined;
-    }
-}
-
-export function loginSecurityNoticeFrom(previous: UserLoginEvent | undefined, current: { ip?: string; userAgent?: string }): LoginSecurityNotice | undefined {
-    if (!previous) return undefined;
-    const networkChanged = Boolean(previous.ip && current.ip && previous.ip !== current.ip);
-    const deviceChanged = Boolean(previous.userAgent && current.userAgent && previous.userAgent !== current.userAgent);
-    return networkChanged || deviceChanged ? { networkChanged, deviceChanged, previousLoginAt: previous.createdAt } : undefined;
-}
-
-export async function listUserLoginEvents(userId: string, options: { page?: number; pageSize?: number } = {}) {
-    const result = await listAuditLogs({
-        actorId: userId,
-        action: "auth.login",
-        status: "success",
-        page: options.page,
-        pageSize: options.pageSize,
-    });
-    return {
-        items: result.items.map((log): UserLoginEvent => ({
-            id: log.id,
-            ip: log.actor.ip,
-            userAgent: log.actor.userAgent,
-            createdAt: log.createdAt,
-        })),
-        total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
-    };
 }
 
 export async function listAuditLogs(options: AuditLogListOptions = {}) {

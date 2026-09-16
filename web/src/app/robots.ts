@@ -7,8 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     return {
         rules: {
             userAgent: "*",
-            allow: ["/", "/gallery", "/share/", "/terms", "/privacy"],
-            disallow: ["/api/", "/admin", "/assets", "/billing", "/canvas", "/create", "/drama", "/image", "/install", "/login", "/my-prompts", "/profile", "/prompts", "/register", "/video", "/works"],
+            disallow: "/",
         },
         sitemap: absoluteSiteUrl("/sitemap.xml", base),
     };

@@ -1,7 +1,5 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
 import { fileTypeFromBuffer } from "file-type";
 import { mediaTaskSource } from "@/lib/media-management-contract";
-import { audioTaskRefundIdempotencyKey, refundAudioTask } from "@/lib/server/audio-task-refund";
 import { getAudioTask, transitionAudioTask, updateAudioTask, type AudioTask } from "@/lib/server/audio-task-store";
 import { generationModelId, systemGenerationChannelId } from "@/lib/server/generation-channel";
 import { generationMediaProxyHeaders } from "@/lib/server/generation-media-authorization";
@@ -18,8 +16,8 @@ import { systemAiBillingHeaders } from "@/lib/server/system-ai-billing";
 import { fetchSafeOutbound } from "@/lib/server/safe-outbound-fetch";
 
 export type AudioUpstreamStep =
-    | { state: "pending"; status: string; upstreamTaskId: string; createPath: string; pointsCost?: number; pointsRecordId?: string }
-    | { state: "result_ready"; status: string; resultUrl: string; pointsCost?: number; pointsRecordId?: string }
+    | { state: "pending"; status: string; upstreamTaskId: string; createPath: string }
+    | { state: "result_ready"; status: string; resultUrl: string }
     | { state: "completed" }
     | { state: "failed"; status: string; error: string };
 
@@ -59,13 +57,11 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
                 throw new GenerationSubmissionSafeFailure(error instanceof Error ? error.message : "音频请求模板无效");
             }
             const { response, path } = await createAudioUpstream(candidate, origin, cookie, workerUserId, payload);
-            const billing = readBilling(response.headers);
-            if (billing.pointsRecordId) await updateAudioTask(task.id, { billing: { pointsCost: billing.pointsCost ?? 0, pointsRecordId: billing.pointsRecordId, refunded: false } });
             const contentType = response.headers.get("content-type")?.split(";")[0].toLowerCase() || "";
             if (!contentType.includes("json")) {
                 const completed = await persistAudioBytes(candidate, origin, Buffer.from(await response.arrayBuffer()), contentType);
                 if (completed?.status === "success") {
-                    await markAudioAttemptSucceeded(candidate, billing);
+                    await markAudioAttemptSucceeded(candidate);
                     return { state: "completed" };
                 }
                 return { state: "failed", status: completed?.status || "cancelled", error: completed?.error || "任务已取消" };
@@ -90,7 +86,7 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
                     lastUpstreamStatus: "completed",
                     resultPayload: { url: directUrl },
                 });
-                return { state: "result_ready", status: "completed", resultUrl: directUrl, ...billing };
+                return { state: "result_ready", status: "completed", resultUrl: directUrl };
             }
             const id = readProviderString(data, undefined, ID_KEYS);
             if (!id) throw new GenerationSubmissionUncertainError("音频接口没有返回音频或任务 ID，创建结果待确认");
@@ -106,13 +102,12 @@ export async function createAudioTaskUpstreamStep(task: AudioTask, origin: strin
                 nextPollAt: submittedAt,
                 lastUpstreamStatus: "submitted",
             });
-            return { state: "pending", status: "submitted", upstreamTaskId: id, createPath: path, ...billing };
+            return { state: "pending", status: "submitted", upstreamTaskId: id, createPath: path };
         } catch (error) {
             if (!(error instanceof GenerationSubmissionSafeFailure)) throw generationSubmissionUncertainError(error, "音频任务创建结果未知");
             latestError = error.message;
             attempts = finishGenerationAttempt(attempts, candidate.attemptNo, { status: "failed", error: latestError });
-            await refundAudioCandidate(candidate);
-            await updateAudioTask(task.id, { attempts, attemptNo: candidate.attemptNo, upstream: undefined, billing: undefined });
+            await updateAudioTask(task.id, { attempts, attemptNo: candidate.attemptNo, upstream: undefined });
         }
     }
     return { state: "failed", status: "failed", error: latestError };
@@ -158,16 +153,15 @@ export async function persistAudioTaskResult(task: AudioTask, origin: string, re
 export async function markAudioTaskFailed(task: AudioTask, error: string) {
     const current = (await getAudioTask(task.id)) || task;
     if (current.status === "cancelled" || current.status === "success") return current;
-    const billing = current.billing;
-    const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1, { status: "failed", error, pointsCost: billing?.pointsCost, pointsRecordId: billing?.pointsRecordId });
-    const failed = await transitionAudioTask(current, ["pending", "running"], { status: "error", error: error.slice(0, 500), config: { ...current.config, apiKey: "" }, billing });
+    const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || current.attempts?.at(-1)?.attemptNo || 1, { status: "failed", error });
+    const failed = await transitionAudioTask(current, ["pending", "running"], { status: "error", error: error.slice(0, 500), config: { ...current.config, apiKey: "" } });
     if (!failed) {
         const latest = await getAudioTask(current.id);
-        if (latest?.status === "error" || latest?.status === "cancelled") return refundAudioTask(latest);
+        if (latest?.status === "error" || latest?.status === "cancelled") return latest;
         return latest;
     }
     await updateAudioTask(current.id, { attempts, candidateConfigs: [], attemptNo: attempts.at(-1)?.attemptNo });
-    return refundAudioTask(failed);
+    return failed;
 }
 
 async function createAudioUpstream(task: AudioTask, origin: string, cookie: string, workerUserId: string, payload: Record<string, unknown>) {
@@ -198,13 +192,6 @@ async function createAudioUpstream(task: AudioTask, origin: string, cookie: stri
     throw new GenerationSubmissionSafeFailure(lastError || "没有可用的音频创建接口");
 }
 
-async function refundAudioCandidate(task: AudioTask) {
-    const current = await getAudioTask(task.id);
-    const billing = current?.billing;
-    if (!billing?.pointsRecordId || billing.refunded) return;
-    await refundUserPoints(task.userId, generationModelId(task.config), billing.pointsCost, "audio", 1, audioTaskRefundIdempotencyKey({ id: task.id, attemptNo: task.attemptNo }), billing.pointsRecordId);
-}
-
 async function persistAudioBytes(task: AudioTask, origin: string, bytes: Buffer, responseMime: string) {
     if (!bytes.length || bytes.length > 30 * 1024 * 1024) throw new Error("音频结果为空或超过 30MB 限制");
     const detected = await fileTypeFromBuffer(bytes);
@@ -223,14 +210,10 @@ function looksLikeTextResponse(bytes: Buffer) {
 
 async function completeAudioTask(task: AudioTask, url: string, mimeType: string) {
     const current = await getAudioTask(task.id);
-    if (!current || current.status === "cancelled") {
-        if (current?.status === "cancelled") await refundAudioTask(current);
-        return current;
-    }
-    const completed = await transitionAudioTask(current, ["pending", "running"], { status: "success", result: { url, mimeType }, config: { ...current.config, apiKey: "" }, billing: current.billing });
+    if (!current || current.status === "cancelled") return current;
+    const completed = await transitionAudioTask(current, ["pending", "running"], { status: "success", result: { url, mimeType }, config: { ...current.config, apiKey: "" } });
     if (!completed) {
         const latest = await getAudioTask(task.id);
-        if (latest?.status === "cancelled") await refundAudioTask(latest);
         return latest;
     }
     await registerGenerationTaskAssetsForUser(completed.userId, {
@@ -242,11 +225,11 @@ async function completeAudioTask(task: AudioTask, url: string, mimeType: string)
     return completed;
 }
 
-async function markAudioAttemptSucceeded(task: AudioTask, billing: { pointsCost?: number; pointsRecordId?: string }) {
+async function markAudioAttemptSucceeded(task: AudioTask) {
     const current = await getAudioTask(task.id);
     if (!current) return;
-    const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || 1, { status: "succeeded", pointsCost: billing.pointsCost, pointsRecordId: billing.pointsRecordId });
-    await updateAudioTask(task.id, { attempts, attemptNo: attempts.at(-1)?.attemptNo, candidateConfigs: [], billing: billing.pointsRecordId ? { pointsCost: billing.pointsCost ?? 0, pointsRecordId: billing.pointsRecordId, refunded: false } : undefined });
+    const attempts = finishGenerationAttempt(current.attempts || [], current.attemptNo || 1, { status: "succeeded" });
+    await updateAudioTask(task.id, { attempts, attemptNo: attempts.at(-1)?.attemptNo, candidateConfigs: [] });
 }
 
 function providerFetch(task: AudioTask, origin: string, cookie: string, workerUserId: string, path: string, init: RequestInit) {
@@ -269,12 +252,6 @@ function mediaUrlFromProxyPath(path: string) {
     } catch {
         return "";
     }
-}
-
-function readBilling(headers: Headers) {
-    const raw = headers.get("x-vozeb-pro-points-cost");
-    const value = raw === null ? undefined : Number(raw);
-    return { pointsCost: value !== undefined && Number.isFinite(value) && value >= 0 ? value : undefined, pointsRecordId: headers.get("x-vozeb-pro-points-record-id") || undefined };
 }
 
 function mediaContext(task: AudioTask) {

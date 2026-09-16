@@ -3,7 +3,6 @@ import { nanoid } from "nanoid";
 import { GenerationTaskNeedsReviewError, type GenerationTaskExecutionState } from "@/services/api/generation-task-state";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { GenerationTaskRequestError, readGenerationRetryAfterMs } from "@/services/api/generation-task-request-error";
-import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 import { imageToDataUrl } from "@/services/image-storage";
 import { serverMediaUrl } from "@/services/server-media-storage";
@@ -114,7 +113,6 @@ export async function createImageGenerationTask(config: AiConfig, prompt: string
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, requestConfig.apiSource);
     if (!response.ok) throw new GenerationTaskRequestError(await readFetchError(response, "创建图片任务失败"), response.status, false, readGenerationRetryAfterMs(response.headers));
     const payload = (await response.json()) as ImageTaskPayload;
     if (!payload.task?.id) throw new Error(payload.error || "创建图片任务失败");
@@ -129,7 +127,6 @@ export async function recoverImageGenerationTask(taskId: string, options?: Pick<
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, "system");
     if (!response.ok) throw new GenerationTaskRequestError(await readFetchError(response, "重新检查图片任务失败"), response.status, false, readGenerationRetryAfterMs(response.headers));
     const payload = (await response.json()) as ImageTaskPayload;
     if (!payload.task) throw new Error(payload.error || "重新检查图片任务失败");
@@ -163,7 +160,6 @@ export async function waitForImageGenerationTask(config: AiConfig, task: ImageGe
     for (;;) {
         if (options?.signal?.aborted) throw new DOMException("请求已取消", "AbortError");
         if (Date.now() - startedAt > IMAGE_TASK_TIMEOUT_MS) {
-            await refreshUserPointsIfSystem(config.apiSource);
             throw new ImageGenerationTaskDeferredError();
         }
         let response: Response;
@@ -175,7 +171,6 @@ export async function waitForImageGenerationTask(config: AiConfig, task: ImageGe
             continue;
         }
         throwIfClientSessionExpired(response);
-        syncUserPointsFromHeaders(response.headers, config.apiSource);
         if (!response.ok) {
             const message = await readFetchError(response, "读取图片任务失败");
             if (isDeferredPollStatus(response.status)) {
@@ -190,7 +185,6 @@ export async function waitForImageGenerationTask(config: AiConfig, task: ImageGe
         if (current.needsReview) throw new GenerationTaskNeedsReviewError(current.reviewReason);
         if (current.status === "success") {
             if (!current.result?.dataUrl) throw new ImageGenerationTaskTerminalError("图片任务没有返回结果", true);
-            await refreshUserPointsIfSystem(config.apiSource);
             const media = dedupeImageResults(current.result.results?.length ? current.result.results : [current.result]);
             const results = media.flatMap((item) =>
                 item.dataUrl
@@ -216,11 +210,9 @@ export async function waitForImageGenerationTask(config: AiConfig, task: ImageGe
             };
         }
         if (current.status === "error") {
-            await refreshUserPointsIfSystem(config.apiSource);
             throw new ImageGenerationTaskTerminalError(current.error || "图片生成失败", current.canRetry === true);
         }
         if (current.status === "cancelled") {
-            await refreshUserPointsIfSystem(config.apiSource);
             throw new ImageGenerationTaskTerminalError(current.error || "图片任务已取消", false);
         }
         await delay(IMAGE_TASK_POLL_INTERVAL_MS, options?.signal);

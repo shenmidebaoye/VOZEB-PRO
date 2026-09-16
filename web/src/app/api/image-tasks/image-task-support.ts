@@ -2,7 +2,7 @@ import { rawReferenceRequestUrlCandidates } from "./image-task-reference-urls";
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { dedupeImageResults } from "@/lib/image-result-dedupe";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
@@ -274,11 +274,10 @@ export function imageSubmissionResponseError(status: number, message: string) {
     return generationSubmissionResponseError(status, message);
 }
 
-export async function parseImageSubmissionJson<T>(task: ImageTask, response: Response): Promise<T> {
+export async function parseImageSubmissionJson<T>(_task: ImageTask, response: Response): Promise<T> {
     try {
         return (await response.json()) as T;
     } catch {
-        await persistChargedImageResponse(task, response.headers);
         throw new GenerationSubmissionUncertainError("图片接口返回了无效 JSON，创建结果待确认");
     }
 }
@@ -778,43 +777,8 @@ export async function readFetchError(response: Response, fallback: string) {
     }
 }
 
-export function readPointsRemaining(headers: Headers) {
-    const value = headers.get("x-vozeb-pro-points-remaining");
-    const numberValue = Number(value);
-    return Number.isFinite(numberValue) ? numberValue : undefined;
-}
-
-export function readBilling(headers: Headers) {
-    const rawCost = headers.get("x-vozeb-pro-points-cost");
-    const pointsCost = rawCost === null ? undefined : Number(rawCost);
-    return {
-        pointsRemaining: readPointsRemaining(headers),
-        pointsCost: pointsCost !== undefined && Number.isFinite(pointsCost) && pointsCost >= 0 ? pointsCost : undefined,
-        pointsRecordId: headers.get("x-vozeb-pro-points-record-id") || undefined,
-    };
-}
-
-export async function parseChargedImageResponse(task: ImageTask, response: Response, parse: () => Promise<ImageTaskResult>) {
-    try {
-        return { ...(await parse()), ...readBilling(response.headers) };
-    } catch (error) {
-        if (error instanceof GenerationSubmissionUncertainError) await persistChargedImageResponse(task, response.headers);
-        else await refundChargedImageResponse(task, response.headers);
-        throw error;
-    }
-}
-
-export async function persistChargedImageResponse(task: ImageTask, headers: Headers) {
-    const { pointsCost, pointsRecordId } = readBilling(headers);
-    if (pointsCost === undefined || !pointsRecordId) return;
-    await updateImageTask(task.id, { billing: { pointsCost, pointsRecordId, refunded: false } });
-}
-
-export async function refundChargedImageResponse(task: ImageTask, headers: Headers) {
-    const { pointsCost, pointsRecordId } = readBilling(headers);
-    if (pointsCost === undefined || !pointsRecordId) return;
-    const settings = await getAuthSettings();
-    await refundUserPoints(task.userId, generationModelId(task.config), pointsCost, "image", imageUnits(task.config.quality, settings.generationPointMultipliers.imageQuality), undefined, pointsRecordId);
+export async function parseChargedImageResponse(_task: ImageTask, _response: Response, parse: () => Promise<ImageTaskResult>) {
+    return parse();
 }
 
 export function imageUnits(quality: string | undefined, multipliers: Record<string, number>) {

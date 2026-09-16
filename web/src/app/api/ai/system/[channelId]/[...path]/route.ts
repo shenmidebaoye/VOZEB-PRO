@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { getAuthSettings, type ApiCallFormat, type GenerationPointMultipliers, type PointUsageKind } from "@/lib/auth/store";
+import { getAuthSettings, type ApiCallFormat, type PointUsageKind } from "@/lib/auth/store";
 import { getCurrentUser } from "@/lib/auth/session";
 import { DEFAULT_CHANNEL_CONNECT_ERROR } from "@/lib/server/generation-errors";
 import { UnsupportedMediaContentError } from "@/lib/server/media-content-validation";
@@ -34,7 +34,7 @@ configureServerProxyDispatcher();
 type RouteContext = {
     params: Promise<{ channelId: string; path: string[] }>;
 };
-type PointsRequest = { model: string; amount: number; usageKind: PointUsageKind };
+type CreateCapabilityRequest = { model: string; amount: 1; usageKind: PointUsageKind };
 type ProxyRequestBody = { body?: BodyInit; pointsPayload?: ArrayBuffer | Record<string, unknown>; bodyDigest: string };
 const MAX_PROXY_MULTIPART_BYTES = 25 * 1024 * 1024;
 const SYSTEM_MEDIA_TIMEOUT_MS = 30 * 1000;
@@ -99,8 +99,8 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
     const globalAdaptation = adaptGlobalAiOpcTextRequest(channel.advancedConfig, path, requestBody.body);
     if (globalAdaptation === "responses-unsupported") return NextResponse.json({ error: "该 GlobalAiOpc 原生文本接口不支持 Responses，已切换 Chat 兼容回退。" }, { status: 404 });
     const pointsRequest =
-        classifyPointsRequest(request.method, apiFormat, path, contentType, requestBody.pointsPayload, settings.generationPointMultipliers) ||
-        classifyConfiguredPointsRequest(
+        classifyCreateCapabilityRequest(request.method, apiFormat, path, contentType, requestBody.pointsPayload) ||
+        classifyConfiguredCreateCapabilityRequest(
             request.method,
             path,
             contentType,
@@ -109,7 +109,6 @@ async function proxySystemRequest(request: Request, context: RouteContext) {
             [globalPreset?.createPath, modelConfig?.createPath, modelConfig?.editPath, modelConfig?.imageToVideoPath, channel.advancedConfig?.createPath, channel.advancedConfig?.editPath, channel.advancedConfig?.imageToVideoPath],
             upstreamModel,
             settings.logicalModels,
-            settings.generationPointMultipliers,
         );
     if (pointsRequest?.model && !channelHasModel(channel.models, pointsRequest.model)) return NextResponse.json({ error: "该模型未在渠道中启用" }, { status: 403 });
     const access = authorizeSystemAiProxyRequest({
@@ -390,7 +389,7 @@ function emptyBodyDigest() {
     return digestBytes(new Uint8Array());
 }
 
-function classifyPointsRequest(method: string, apiFormat: ApiCallFormat, path: string[], contentType: string | null, body?: ArrayBuffer | Record<string, unknown>, multipliers?: GenerationPointMultipliers): PointsRequest | null {
+function classifyCreateCapabilityRequest(method: string, apiFormat: ApiCallFormat, path: string[], contentType: string | null, body?: ArrayBuffer | Record<string, unknown>): CreateCapabilityRequest | null {
     if (method.toUpperCase() !== "POST") return null;
     const cleanPath = path[0] === "v1" || path[0] === "v1beta" ? path.slice(1) : path;
     const routePath = `/${cleanPath.join("/")}`.toLowerCase();
@@ -399,18 +398,18 @@ function classifyPointsRequest(method: string, apiFormat: ApiCallFormat, path: s
     if (!model) return null;
 
     if (routePath === "/images/generations" || routePath === "/images/edits") {
-        return { model, amount: readRequestCount(payload) * imageQualityMultiplier(payload, multipliers), usageKind: "image" };
+        return { model, amount: 1, usageKind: "image" };
     }
     if (routePath === "/audio/speech") return { model, amount: 1, usageKind: "audio" };
     if (routePath === "/videos" || routePath === "/video/generations" || routePath === "/videos/generations" || routePath === "/videos/videos" || routePath === "/contents/generations/tasks") {
-        return { model, amount: videoParameterMultiplier(payload, multipliers), usageKind: "video" };
+        return { model, amount: 1, usageKind: "video" };
     }
     if (apiFormat === "gemini" && /^\/models\/[^/]+:predictlongrunning$/i.test(routePath)) {
-        return { model, amount: videoParameterMultiplier(payload, multipliers), usageKind: "video" };
+        return { model, amount: 1, usageKind: "video" };
     }
     if (routePath === "/responses") {
         const isImage = hasResponsesImageGenerationTool(payload);
-        return { model, amount: isImage ? imageQualityMultiplier(payload, multipliers) : 1, usageKind: isImage ? "image" : "text" };
+        return { model, amount: 1, usageKind: isImage ? "image" : "text" };
     }
     if (routePath === "/chat/completions") return { model, amount: 1, usageKind: "text" };
     if (apiFormat === "gemini" && routePath.includes(":streamgeneratecontent")) return { model, amount: 1, usageKind: "text" };
@@ -419,7 +418,7 @@ function classifyPointsRequest(method: string, apiFormat: ApiCallFormat, path: s
     return null;
 }
 
-function classifyConfiguredPointsRequest(
+function classifyConfiguredCreateCapabilityRequest(
     method: string,
     path: string[],
     contentType: string | null,
@@ -428,8 +427,7 @@ function classifyConfiguredPointsRequest(
     createPaths: Array<string | undefined>,
     modelHint: string,
     logicalModels: Awaited<ReturnType<typeof getAuthSettings>>["logicalModels"],
-    multipliers?: GenerationPointMultipliers,
-): PointsRequest | null {
+): CreateCapabilityRequest | null {
     if (method.toUpperCase() !== "POST") return null;
     const cleanPath = normalizedConfiguredProxyPath(`/${path.join("/")}`);
     if (!createPaths.some((createPath) => createPath && cleanPath === normalizedConfiguredProxyPath(createPath))) return null;
@@ -437,8 +435,8 @@ function classifyConfiguredPointsRequest(
     const model = readRequestModel(payload) || modelHint;
     if (!model) return null;
     const capability = logicalModels.find((logical) => logical.enabled && logical.bindings.some((binding) => binding.enabled && binding.channelId === channelId && sameModel(binding.upstreamModel, model)))?.capability;
-    if (capability === "image") return { model, amount: readRequestCount(payload) * imageQualityMultiplier(payload, multipliers), usageKind: "image" };
-    if (capability === "video") return { model, amount: videoParameterMultiplier(payload, multipliers), usageKind: "video" };
+    if (capability === "image") return { model, amount: 1, usageKind: "image" };
+    if (capability === "video") return { model, amount: 1, usageKind: "video" };
     if (capability === "audio") return { model, amount: 1, usageKind: "audio" };
     return capability === "text" ? { model, amount: 1, usageKind: "text" } : null;
 }
@@ -486,52 +484,6 @@ function readPathModel(path: string[]) {
         .split(":")[0]
         .replace(/^models\//, "")
         .trim();
-}
-
-function readRequestCount(payload: Record<string, unknown>) {
-    const count = Math.floor(Number(payload.n) || 1);
-    return Math.max(1, Math.min(1000, count));
-}
-
-function imageQualityMultiplier(payload: Record<string, unknown>, multipliers?: GenerationPointMultipliers) {
-    return multiplierValue(multipliers?.imageQuality, normalizeImageQualityKey(payload.quality));
-}
-
-function videoParameterMultiplier(payload: Record<string, unknown>, multipliers?: GenerationPointMultipliers) {
-    const parameters = payload.parameters && typeof payload.parameters === "object" && !Array.isArray(payload.parameters) ? (payload.parameters as Record<string, unknown>) : {};
-    return (
-        multiplierValue(multipliers?.videoQuality, normalizeVideoQualityKey(payload.resolution_name || payload.resolution || payload.quality || payload.vquality || parameters.resolution || parameters.quality || parameters.resolution_name)) *
-        multiplierValue(multipliers?.videoSeconds, normalizeVideoSecondsKey(payload.duration || payload.seconds || parameters.durationSeconds || parameters.duration || parameters.seconds))
-    );
-}
-
-function multiplierValue(values: Record<string, number> | undefined, key: string) {
-    const value = values?.[key];
-    return Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 1;
-}
-
-function normalizeImageQualityKey(value: unknown) {
-    const key = String(value || "auto")
-        .trim()
-        .toLowerCase();
-    if (key === "hd") return "high";
-    if (key === "standard") return "medium";
-    return key || "auto";
-}
-
-function normalizeVideoQualityKey(value: unknown) {
-    const key = String(value || "720")
-        .trim()
-        .toLowerCase();
-    if (key === "low") return "480";
-    if (key === "auto" || key === "medium" || key === "high") return "720";
-    return key.replace(/p$/, "") || "720";
-}
-
-function normalizeVideoSecondsKey(value: unknown) {
-    const seconds = Number(value);
-    if (!Number.isFinite(seconds)) return "5";
-    return String(Math.max(-1, Math.floor(seconds)));
 }
 
 function hasGeminiImageResponseModality(payload: Record<string, unknown>) {

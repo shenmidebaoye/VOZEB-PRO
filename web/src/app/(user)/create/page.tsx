@@ -17,7 +17,6 @@ import { listAgentSkills, type AgentSkillSummary } from "@/services/api/agent-sk
 import type { CreativeAgentRun } from "@/services/api/creative";
 import { optimizePrompt } from "@/services/api/prompt-optimization";
 import { usePublicSessionStore } from "@/stores/use-public-session-store";
-import type { PublicGalleryItem } from "@/services/api/work-governance";
 import { createAgentDraftFromHash } from "@/lib/create-agent-prompt";
 import { resolveSiteTitle } from "@/lib/site-brand";
 
@@ -25,7 +24,6 @@ import { CreativeComposer } from "./components/creative-composer";
 import { CreativeAssetsPanel } from "./components/creative-assets-panel";
 import { applyAgentGenerationCapability, shouldShowVideoFrameControls } from "./components/creative-composer-video-mode";
 import { CreativeConversationList } from "./components/creative-conversation-list";
-import { CreateInspirationGallery } from "./components/create-inspiration-gallery";
 import { CreativeMessages } from "./components/creative-messages";
 import { CreateWorkbenchOverview } from "./components/create-workbench-overview";
 import { publicCreativeAssetPrompt, remapCreativeAssetReferences } from "./components/creative-asset-mention";
@@ -266,12 +264,6 @@ export default function CreatePage() {
         }
     };
 
-    const usePublicPrompt = (value: string) => {
-        updatePrompt(value);
-        window.requestAnimationFrame(() => inputRef.current?.focus());
-        message.success("已填入公开提示词");
-    };
-
     const optimizeCurrentPrompt = async () => {
         const source = promptValueRef.current.trim();
         if (!source || optimizingRef.current) return;
@@ -308,12 +300,6 @@ export default function CreatePage() {
         } catch (error) {
             message.error(error instanceof Error ? error.message : "引用素材失败");
         }
-    };
-
-    const usePublicImage = async (item: PublicGalleryItem) => {
-        const preview = item.preview;
-        if (!preview || preview.mediaType !== "image") return;
-        await importReferenceMedia({ url: preview.url, mimeType: preview.mimeType, fileStem: item.slug });
     };
 
     const useRecentAsset = async (asset: CreateOverviewAsset) => {
@@ -729,7 +715,6 @@ export default function CreatePage() {
                                     })}
                                 </div>
                                 <CreateWorkbenchOverview onUseAsset={useRecentAsset} />
-                                <CreateInspirationGallery onUsePrompt={usePublicPrompt} onUseImage={usePublicImage} />
                             </div>
                         )}
                     </section>

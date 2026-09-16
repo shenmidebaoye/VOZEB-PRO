@@ -38,16 +38,8 @@ export function dramaGenerationSize(project: DramaProject, prompt: string, refer
     return resolveDramaGenerationSize({ projectSize: project.ratio, prompt, references });
 }
 
-export function estimateTaskPoints(config: ReturnType<typeof useEffectiveConfig>, type: "image" | "video" | "audio", duration = 5) {
-    const model = type === "image" ? config.imageModel || config.model : type === "video" ? config.videoModel || config.model : config.audioModel;
-    const base = Number(config.modelPointCosts[model] || 0);
-    if (type === "image") return Number((base * (config.generationPointMultipliers.imageQuality[config.quality] || 1)).toFixed(2));
-    if (type === "video") {
-        const quality = config.generationPointMultipliers.videoQuality[config.vquality] || 1;
-        const seconds = config.generationPointMultipliers.videoSeconds[String(duration)] || config.generationPointMultipliers.videoSeconds[config.videoSeconds] || 1;
-        return Number((base * quality * seconds).toFixed(2));
-    }
-    return Number(base.toFixed(2));
+export function estimateTaskPoints(_config: ReturnType<typeof useEffectiveConfig>, _type: "image" | "video" | "audio", _duration = 5) {
+    return 0;
 }
 
 export function estimateEpisodePoints(config: ReturnType<typeof useEffectiveConfig>, project: DramaProject, shots: DramaShot[]) {

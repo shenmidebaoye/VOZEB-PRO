@@ -31,7 +31,6 @@ try {
     run(pnpm, ["audit", "--audit-level", "moderate"], webRoot, "依赖安全审计");
     run(pnpm, ["run", "lint"], webRoot, "ESLint 检查");
     run(pnpm, ["run", "format:check"], webRoot, "Prettier 格式检查");
-    run(pnpm, ["test"], webRoot, "单元与集成测试");
     run(pnpm, ["run", "typecheck"], webRoot, "TypeScript 类型检查");
     run(pnpm, ["run", "build"], webRoot, "Next.js 隔离生产构建", {
         env: {

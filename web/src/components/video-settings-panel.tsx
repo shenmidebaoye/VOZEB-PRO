@@ -24,7 +24,6 @@ const sizeOptions = [
 ];
 
 const defaultSecondOptions = [5, 10];
-const legacyDefaultSecondKeys = new Set(["12", "16"]);
 
 type VideoSettingsPanelProps = {
     config: AiConfig;
@@ -186,16 +185,8 @@ export function videoSecondsLabel(value: string) {
     return `${value || "5"}s`;
 }
 
-export function videoSecondOptionsFromConfig(config: AiConfig, allowAuto = false, maxSeconds?: number) {
-    const multipliers = config.generationPointMultipliers?.videoSeconds || {};
-    const customOptions = Object.entries(multipliers)
-        .map(([key, multiplier]) => ({ seconds: Number(key), key, multiplier: Number(multiplier) }))
-        .filter((item) => Number.isFinite(item.seconds) && Number.isInteger(item.seconds) && (allowAuto ? item.seconds >= -1 : item.seconds > 0))
-        .filter((item) => item.seconds !== -1 || allowAuto)
-        .filter((item) => item.seconds === -1 || maxSeconds === undefined || item.seconds <= maxSeconds)
-        .filter((item) => !legacyDefaultSecondKeys.has(item.key) || item.multiplier !== 1)
-        .map((item) => item.seconds);
-    const values = Array.from(new Set([...(allowAuto && customOptions.includes(-1) ? [-1] : []), ...defaultSecondOptions.filter((value) => maxSeconds === undefined || value <= maxSeconds), ...customOptions.filter((value) => value > 0)]));
+export function videoSecondOptionsFromConfig(_config: AiConfig, allowAuto = false, maxSeconds?: number) {
+    const values = Array.from(new Set([...(allowAuto ? [-1] : []), ...defaultSecondOptions.filter((value) => maxSeconds === undefined || value <= maxSeconds)]));
     return values.sort((a, b) => (a === -1 ? -1 : b === -1 ? 1 : a - b));
 }
 

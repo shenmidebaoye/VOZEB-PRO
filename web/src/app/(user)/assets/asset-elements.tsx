@@ -1,6 +1,6 @@
 "use client";
 
-import { AudioLines, Copy, Download, FileText, Film, ImageIcon, PencilLine, Share2, Trash2 } from "lucide-react";
+import { AudioLines, Copy, Download, FileText, Film, ImageIcon, PencilLine, Trash2 } from "lucide-react";
 import { Button, Image, Modal, Space, Tag, Tooltip, Typography } from "antd";
 import { formatBytes } from "@/lib/image-utils";
 import { imagePreviewUrl } from "@/lib/media-image-url";
@@ -14,7 +14,6 @@ export function AssetCard({
     onCopy,
     onDownload,
     onDelete,
-    onPublish,
 }: {
     asset: Asset;
     onOpen: () => void;
@@ -22,7 +21,6 @@ export function AssetCard({
     onCopy: (asset: Asset) => void;
     onDownload: (asset: Asset) => void;
     onDelete: () => void;
-    onPublish?: () => void;
 }) {
     const cover = asset.coverUrl || (asset.kind === "image" ? asset.data.dataUrl : "");
     const summary = assetSummary(asset);
@@ -73,11 +71,6 @@ export function AssetCard({
                                 <Button type="text" size="small" shape="circle" icon={<Download className="size-3.5" />} aria-label={action("下载")} onClick={() => onDownload(asset)} />
                             </Tooltip>
                         )}
-                        {onPublish ? (
-                            <Tooltip title="发布作品">
-                                <Button type="text" size="small" shape="circle" icon={<Share2 className="size-3.5" />} onClick={onPublish} aria-label={action("发布")} />
-                            </Tooltip>
-                        ) : null}
                         <Tooltip title="删除">
                             <Button danger type="text" size="small" shape="circle" icon={<Trash2 className="size-3.5" />} aria-label={action("删除")} onClick={onDelete} />
                         </Tooltip>

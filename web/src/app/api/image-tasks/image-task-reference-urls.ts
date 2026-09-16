@@ -19,7 +19,7 @@ export async function publicImageReferenceRequestUrl(reference: ImageTaskReferen
     const candidates = referenceRequestUrlCandidates(reference, origin);
     const managedCandidate = candidates.map((value) => managedMediaInput(value, origin, publicOrigin)).find((value): value is { value: string; pathname: string; scope: "reference" | "generation" } => Boolean(value));
     if (managedCandidate) {
-        const registeredOwnerUserId = await requireManagedMediaInputOwner(managedCandidate.pathname, { id: context.ownerUserId, role: "user" }, managedCandidate.scope);
+        const registeredOwnerUserId = await requireManagedMediaInputOwner(managedCandidate.pathname, { id: context.ownerUserId }, managedCandidate.scope);
         const signedUrl = managedCandidate.scope === "reference" ? signReferenceAssetInputUrl(managedCandidate.value, publicOrigin, registeredOwnerUserId) : signGenerationAssetInputUrl(managedCandidate.value, publicOrigin, registeredOwnerUserId);
         if (signedUrl !== managedCandidate.value) return signedUrl;
         throw new Error("站内参考素材签名不可用，请配置 VOZEB_PRO_ENCRYPTION_KEY");

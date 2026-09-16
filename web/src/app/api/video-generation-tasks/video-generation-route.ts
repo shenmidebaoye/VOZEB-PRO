@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/auth/request";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings, isAuthInputError, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings, isAuthInputError } from "@/lib/auth/store";
 import { generationModelId, toSystemGenerationChannel } from "@/lib/server/generation-channel";
 import { finishGenerationAttempt, startGenerationAttempt, type GenerationAttempt } from "@/lib/server/generation-attempt";
 import { fetchInternalApi, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -181,7 +181,7 @@ export async function POST(request: Request) {
                     lastUpstreamStatus: "submitting",
                 });
                 try {
-                    const upstream = await createUpstream(user.id, origin, cookie, channel, providerPrompt, parameters, references, settings.generationPointMultipliers, billingRequestId);
+                    const upstream = await createUpstream(user.id, origin, cookie, channel, providerPrompt, parameters, references, billingRequestId);
                     await updateVideoTask(localTask.id, { config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts });
                     const task = { ...localTask, config: channel, upstream, requestedDurationSeconds: parameters.videoSeconds === -1 ? undefined : parameters.videoSeconds, attempts };
                     const submittedAt = Date.now();
@@ -203,10 +203,6 @@ export async function POST(request: Request) {
                         attempts = finishGenerationAttempt(attempts, started.attempt.attemptNo, { status: "failed", error: toSafeGenerationErrorMessage(error, "视频任务创建失败") });
                         await updateVideoTask(localTask.id, { attempts });
                         if (index < channels.length - 1) continue;
-                    } else if (error instanceof VideoSubmissionUncertainError && error.billing) {
-                        const upstream = { ...localTask.upstream, ...error.billing };
-                        await updateVideoTask(localTask.id, { upstream, attempts });
-                        localTask = { ...localTask, upstream, attempts };
                     }
                     const message = toSafeGenerationErrorMessage(error, "视频任务创建失败");
                     if (!(error instanceof SafeCandidateFailure)) {
@@ -233,7 +229,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "当前用户视频任务已达到并发上限" }, { status: 429, ...(retryAfter ? { headers: { "Retry-After": String(retryAfter) } } : {}) });
 }
 
-export async function signProviderReference(reference: VideoGenerationReference, user: { id: string; role: "user" | "admin" }, publicOrigin: string) {
+export async function signProviderReference(reference: VideoGenerationReference, user: { id: string }, publicOrigin: string) {
     let url: URL;
     try {
         url = new URL(reference.url, publicOrigin);
@@ -243,19 +239,18 @@ export async function signProviderReference(reference: VideoGenerationReference,
     if (url.origin !== new URL(publicOrigin).origin) return reference;
     const scope = url.pathname.startsWith("/api/reference-assets/") ? "reference" : url.pathname.startsWith("/api/generation-log-assets/") ? "generation" : null;
     if (!scope) return reference;
-    const registeredOwnerUserId = await requireManagedMediaInputOwner(url.pathname, { id: user.id, role: user.role }, scope);
+    const registeredOwnerUserId = await requireManagedMediaInputOwner(url.pathname, { id: user.id }, scope);
     return { ...reference, url: scope === "reference" ? signReferenceAssetInputUrl(reference.url, publicOrigin, registeredOwnerUserId) : signGenerationAssetInputUrl(reference.url, publicOrigin, registeredOwnerUserId) };
 }
 
 export async function createUpstream(
-    userId: string,
+    _userId: string,
     origin: string,
     cookie: string,
     channel: NonNullable<ReturnType<typeof toSystemGenerationChannel>>,
     prompt: string,
     raw: Record<string, unknown>,
     references: VideoGenerationReference[],
-    multipliers: Awaited<ReturnType<typeof getAuthSettings>>["generationPointMultipliers"],
     billingRequestId: string,
 ) {
     let lastError = "";
@@ -271,7 +266,7 @@ export async function createUpstream(
     const dimensions = videoDimensions(raw.size, raw.vquality);
     const generateAudio = raw.videoGenerateAudio !== false && raw.videoGenerateAudio !== "false";
     if (isGeminiVideoChannel(channel)) {
-        return createGeminiVideoUpstream({ userId, origin, cookie, channel, prompt, raw, references, generateAudio, multipliers, billingRequestId });
+        return createGeminiVideoUpstream({ origin, cookie, channel, prompt, raw, references, generateAudio, billingRequestId });
     }
     const values = {
         model: channel.model,
@@ -404,19 +399,16 @@ export async function createUpstream(
         try {
             data = parseVideoProviderJson(text);
         } catch (error) {
-            throw new VideoSubmissionUncertainError(error instanceof Error ? error.message : "视频接口返回了无效 JSON", videoSubmissionBilling(response.headers, raw, multipliers));
+            throw new VideoSubmissionUncertainError(error instanceof Error ? error.message : "视频接口返回了无效 JSON");
         }
         const providerError = readProviderError(data);
         if (isProviderBusinessError(data)) {
-            const pointsCost = billedPointsCost(response.headers.get("x-vozeb-pro-points-cost"));
-            const pointsRecordId = response.headers.get("x-vozeb-pro-points-record-id") || undefined;
-            if (pointsCost !== undefined && pointsRecordId) await refundUserPoints(userId, generationModelId(channel), pointsCost, "video", videoUnits(raw, multipliers), undefined, pointsRecordId);
             throw new SafeCandidateFailure(providerError || "视频接口请求失败");
         }
         const resultUrl = readVideoProviderUrl(data, channel.advancedConfig?.resultField);
         const id = readVideoProviderId(data) || (resultUrl ? `direct:${Date.now()}` : "");
         if (!id) {
-            throw new VideoSubmissionUncertainError(providerError || "视频接口没有返回任务 ID", videoSubmissionBilling(response.headers, raw, multipliers));
+            throw new VideoSubmissionUncertainError(providerError || "视频接口没有返回任务 ID");
         }
         return {
             id,
@@ -425,16 +417,12 @@ export async function createUpstream(
             pollPath: path,
             queryPath: undefined,
             resultUrl: resultUrl || undefined,
-            pointsCost: billedPointsCost(response.headers.get("x-vozeb-pro-points-cost")),
-            pointsUnits: videoUnits(raw, multipliers),
-            pointsRecordId: response.headers.get("x-vozeb-pro-points-record-id") || undefined,
         };
     }
     throw new SafeCandidateFailure(lastError || "没有可用的视频创建接口");
 }
 
 async function createGeminiVideoUpstream(input: {
-    userId: string;
     origin: string;
     cookie: string;
     channel: NonNullable<ReturnType<typeof toSystemGenerationChannel>>;
@@ -442,7 +430,6 @@ async function createGeminiVideoUpstream(input: {
     raw: Record<string, unknown>;
     references: VideoGenerationReference[];
     generateAudio: boolean;
-    multipliers: Awaited<ReturnType<typeof getAuthSettings>>["generationPointMultipliers"];
     billingRequestId: string;
 }) {
     const payload = await buildGeminiVideoRequest({
@@ -477,18 +464,13 @@ async function createGeminiVideoUpstream(input: {
     try {
         data = parseVideoProviderJson(text);
     } catch (error) {
-        throw new VideoSubmissionUncertainError(error instanceof Error ? error.message : "Gemini Veo 返回了无效 JSON", videoSubmissionBilling(response.headers, input.raw, input.multipliers));
+        throw new VideoSubmissionUncertainError(error instanceof Error ? error.message : "Gemini Veo 返回了无效 JSON");
     }
     const created = parseGeminiVideoCreateResponse(data, input.channel.model);
-    const pointsCost = billedPointsCost(response.headers.get("x-vozeb-pro-points-cost"));
-    const pointsRecordId = response.headers.get("x-vozeb-pro-points-record-id") || undefined;
     if (created.error) {
-        if (pointsCost !== undefined && pointsRecordId) {
-            await refundUserPoints(input.userId, generationModelId(input.channel), pointsCost, "video", videoUnits(input.raw, input.multipliers), undefined, pointsRecordId);
-        }
         throw new SafeCandidateFailure(created.error);
     }
-    if (!created.id) throw new VideoSubmissionUncertainError("Gemini Veo 没有返回 operation ID", videoSubmissionBilling(response.headers, input.raw, input.multipliers));
+    if (!created.id) throw new VideoSubmissionUncertainError("Gemini Veo 没有返回 operation ID");
     return {
         id: created.id,
         provider: "generation" as const,
@@ -496,9 +478,6 @@ async function createGeminiVideoUpstream(input: {
         pollPath: path,
         queryPath: created.queryPath || undefined,
         resultUrl: created.resultUrl || undefined,
-        pointsCost,
-        pointsUnits: videoUnits(input.raw, input.multipliers),
-        pointsRecordId,
     };
 }
 
@@ -549,31 +528,12 @@ function sizeValue(value: unknown) {
     const text = clean(value);
     return parseImageDimensions(text) ? text.replace(/\s+/g, "") : ratio(value);
 }
-function billedPointsCost(value: unknown) {
-    if (value === null || value === undefined || value === "") return undefined;
-    const number = Number(value);
-    return Number.isFinite(number) && number >= 0 ? number : undefined;
-}
-
-function videoSubmissionBilling(headers: Headers, raw: Record<string, unknown>, multipliers: Awaited<ReturnType<typeof getAuthSettings>>["generationPointMultipliers"]) {
-    const pointsCost = billedPointsCost(headers.get("x-vozeb-pro-points-cost"));
-    const pointsRecordId = headers.get("x-vozeb-pro-points-record-id") || undefined;
-    return pointsCost !== undefined && pointsRecordId ? { pointsCost, pointsUnits: videoUnits(raw, multipliers), pointsRecordId, refunded: false } : undefined;
-}
 
 class VideoSubmissionUncertainError extends Error {
-    constructor(
-        message: string,
-        readonly billing?: Pick<VideoTask["upstream"], "pointsCost" | "pointsUnits" | "pointsRecordId" | "refunded">,
-    ) {
+    constructor(message: string) {
         super(message);
         this.name = "VideoSubmissionUncertainError";
     }
-}
-function videoUnits(raw: Record<string, unknown>, multipliers: Awaited<ReturnType<typeof getAuthSettings>>["generationPointMultipliers"]) {
-    const quality = clean(raw.vquality).replace(/p$/i, "") || "720";
-    const seconds = String(duration(raw.videoSeconds));
-    return (multipliers.videoQuality[quality] || 1) * (multipliers.videoSeconds[seconds] || 1);
 }
 function clean(value: unknown) {
     return typeof value === "string" ? value.trim() : "";

@@ -1,7 +1,6 @@
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -109,11 +108,7 @@ import {
     imageReferenceToFile,
     dataUrlToFile,
     readFetchError,
-    readPointsRemaining,
-    readBilling,
     parseChargedImageResponse,
-    refundChargedImageResponse,
-    imageUnits,
     isRemoteMediaUrl,
     normalizeQuality,
     resolveRequestSize,
@@ -183,7 +178,6 @@ export async function runOpenAiImageTask(task: ImageTask, origin: string, public
     const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
     const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep));
     if (allowProtocolFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
-        await refundChargedImageResponse(task, response.headers);
         return runOpenAiImageTaskWithBase64Response(task, origin, publicOrigin, cookie, singleStep, "base64");
     }
     return result;
@@ -262,7 +256,6 @@ export async function runOpenAiJsonImageEditTask(
         const resultBaseUrl = response.headers.get("x-vozeb-pro-upstream-url") || url;
         const result = await parseChargedImageResponse(task, response, () => parseImagePayloadOrPoll(config, payload, resultBaseUrl, cookie, url, singleStep));
         if (allowProtocolFallback && responseFormat === "url" && shouldRetryInternalImageUrlAsBase64(result)) {
-            await refundChargedImageResponse(task, response.headers);
             return runOpenAiJsonImageEditTask(task, url, origin, publicOrigin, quality, requestSize, cookie, "b64_json", singleStep, "base64");
         }
         return result;

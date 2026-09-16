@@ -1,7 +1,6 @@
 import { after, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
 import { buildImageReferencePromptText } from "@/lib/image-reference-prompt";
 import { configureServerProxyDispatcher } from "@/lib/server/proxy-dispatcher";
 import { fetchInternalApi, isInternalApiBaseUrl, resolveInternalOrigin } from "@/lib/server/internal-origin";
@@ -62,7 +61,7 @@ export type ImageTaskResult = ImageTaskMediaResult & {
         reason: string;
     };
 };
-export type ImageTaskRunResult = ImageTaskResult & { pointsRemaining?: number; pointsCost?: number; pointsRecordId?: string };
+export type ImageTaskRunResult = ImageTaskResult;
 
 export type GeminiPart = {
     text?: string;

@@ -1,4 +1,4 @@
-import { getAuthSettings, refundUserPoints, type LogicalModelCapability } from "@/lib/auth/store";
+import { getAuthSettings, type LogicalModelCapability } from "@/lib/auth/store";
 import { withCreativeFoundation, type CreativeReview } from "@/lib/creative-agent-contract";
 import { isCreativeAutoValue, type CreativeAsset, type CreativeGenerationPreferences, type CreativeSurface } from "@/lib/creative-runtime-contract";
 import { creativeAssetReferenceAliases } from "@/lib/creative-asset-references";
@@ -22,7 +22,7 @@ import { maintenanceWorkerContextHeaders } from "@/lib/server/maintenance-auth";
 import { videoFrameAssetIds, type VideoReferenceRole } from "@/lib/video-reference-contract";
 import type { AgentFunctionCallResult } from "./agent-function-call";
 import { agentSurfaceImageSize, canvasReferenceContext, canvasReferenceSupportsTask, canvasSnapshotNodes, isMediaReferenceType, resolveAgentTaskRatio, resolveCanvasTaskTargetNodeId, selectedCanvasReferenceNodes } from "./agent-run-task-input";
-import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders } from "./system-ai-billing";
+import { systemAiBillingHeaders } from "./system-ai-billing";
 import { acceptsMediaReference, mergeTaskReferences, taskImageUrls, taskReferences, textConstraintInstruction } from "./agent-run-execution-helpers";
 
 export { planToOps, taskResultOps } from "./agent-run-canvas-ops";
@@ -575,7 +575,7 @@ export async function requestFunctionCall(
         allowNaturalLanguage,
         stream,
         onStreamStart,
-        onInvalidResponse: (headers) => refundTextResponse(userId, billingModel, headers),
+        onInvalidResponse: undefined,
     });
     return readFunctionCallResult(call.arguments, call.headers, call.protocol, call.elapsedMs, call.transport, call.fallbackReason);
 }
@@ -591,26 +591,14 @@ export function responseOutputText(payload: { output_text?: string; output?: Arr
     );
 }
 
-export function readFunctionCallResult(argumentsText: string, headers: Headers, protocol?: AgentFunctionCallResult["protocol"], elapsedMs?: number, transport?: AgentFunctionCallResult["transport"], fallbackReason?: string): AgentFunctionCallResult {
-    const pointsRemaining = Number(headers.get("x-vozeb-pro-points-remaining"));
+export function readFunctionCallResult(argumentsText: string, _headers: Headers, protocol?: AgentFunctionCallResult["protocol"], elapsedMs?: number, transport?: AgentFunctionCallResult["transport"], fallbackReason?: string): AgentFunctionCallResult {
     return {
         arguments: argumentsText,
         protocol,
         elapsedMs,
         transport,
         fallbackReason,
-        pointsRemaining: Number.isFinite(pointsRemaining) ? pointsRemaining : undefined,
-        ...readSystemAiBilling(headers),
     };
-}
-
-export async function refundFunctionCall(userId: string, model: string, call: AgentFunctionCallResult) {
-    if (hasSystemAiCharge(call)) await refundUserPoints(userId, model, call.pointsCost, "text", 1, undefined, call.pointsRecordId);
-}
-
-export async function refundTextResponse(userId: string, model: string, headers: Headers) {
-    const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
 }
 
 export async function runTaskWithRetry(runId: string, task: AgentRunTask, origin: string, cookie: string, executionId: string, settings?: Awaited<ReturnType<typeof getAuthSettings>>) {

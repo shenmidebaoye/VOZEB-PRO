@@ -50,7 +50,7 @@ async function serveGenerationAsset(request: Request, context: RouteContext) {
     const downloadOriginal = url.searchParams.get("download") === "original";
     if (!isInsideRoot(filePath, root)) return NextResponse.json({ error: "资源不存在" }, { status: 404 });
     const assetUrl = `/api/generation-log-assets/${(path || []).join("/")}`;
-    if (currentUser && !(await canAccessGenerationAsset(currentUser.id, currentUser.role, assetUrl))) return NextResponse.json({ error: "资源不存在" }, { status: 404 });
+    if (currentUser && !(await canAccessGenerationAsset(currentUser.id, assetUrl))) return NextResponse.json({ error: "资源不存在" }, { status: 404 });
 
     registration ||= await getLocalMediaRegistration((path || []).join("/"));
     if (request.method === "HEAD" && registration?.storageProvider === "object") {

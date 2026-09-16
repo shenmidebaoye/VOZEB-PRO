@@ -39,7 +39,7 @@ export async function listAdminGenerationOperations(options: GenerationTaskRecor
     };
 }
 
-function taskSummary(record: StoredGenerationTaskRecord, user?: { accountId: string; username: string; displayName: string }, childRecords: StoredGenerationTaskRecord[] = []): AdminGenerationTask {
+function taskSummary(record: StoredGenerationTaskRecord, user?: { accountId?: string; username: string; displayName: string }, childRecords: StoredGenerationTaskRecord[] = []): AdminGenerationTask {
     const payload = record.payload;
     const config = object(payload.config);
     const upstream = object(payload.upstream);
@@ -127,7 +127,7 @@ function agentPlannerRuntime(payload: Record<string, unknown>): AdminGenerationT
 
 function agentFailureSummary(payload: Record<string, unknown>): AdminGenerationTask["agentFailure"] {
     const message = text(payload.failure).slice(0, 1000);
-    const stage = payload.failureStage === "planning" || payload.failureStage === "task_execution" || payload.failureStage === "refund" ? payload.failureStage : undefined;
+    const stage = payload.failureStage === "planning" || payload.failureStage === "task_execution" ? payload.failureStage : undefined;
     if (!message || !stage) return undefined;
     const candidates = Array.isArray(payload.candidateFailures)
         ? payload.candidateFailures.slice(0, 12).flatMap((value) => {

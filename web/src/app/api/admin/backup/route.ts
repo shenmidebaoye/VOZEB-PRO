@@ -17,7 +17,6 @@ const RESTORE_FILE_MAP = {
     auth: "auth.json",
     prompts: "prompts.json",
     generationLogs: "generation-logs.json",
-    accountDeletionRequests: "account-deletion-requests.json",
 } as const;
 const MAX_IMPORT_BYTES = 30 * 1024 * 1024;
 const MAX_IMPORT_REQUEST_BYTES = MAX_IMPORT_BYTES + 64 * 1024;
@@ -86,7 +85,6 @@ export async function POST(request: Request) {
                 auth: (valueByKey.get("auth") ?? currentData.auth) as AdminBackupData["auth"],
                 prompts: (valueByKey.get("prompts") ?? currentData.prompts) as AdminBackupData["prompts"],
                 generationLogs: (valueByKey.get("generationLogs") ?? currentData.generationLogs) as AdminBackupData["generationLogs"],
-                accountDeletionRequests: (valueByKey.get("accountDeletionRequests") ?? currentData.accountDeletionRequests) as AdminBackupData["accountDeletionRequests"],
             },
             { mode: "account-config" },
         );
@@ -122,7 +120,6 @@ type BackupFiles = {
     auth?: unknown;
     prompts?: unknown;
     generationLogs?: unknown;
-    accountDeletionRequests?: unknown;
 };
 
 function extractBackupFiles(value: unknown): BackupFiles {
@@ -132,7 +129,6 @@ function extractBackupFiles(value: unknown): BackupFiles {
         auth: files.auth,
         prompts: files.prompts,
         generationLogs: files.generationLogs ?? files["generation-logs"],
-        accountDeletionRequests: files.accountDeletionRequests ?? files["account-deletion-requests"],
     };
 }
 
@@ -145,7 +141,6 @@ function validateBackupFiles(files: BackupFiles) {
     if (files.auth !== undefined && files.auth !== null) validateAuthBackup(files.auth);
     if (files.prompts !== undefined && files.prompts !== null) validateArrayDatabase(files.prompts, "prompts", "公共提示词备份格式不正确");
     if (files.generationLogs !== undefined && files.generationLogs !== null) validateArrayDatabase(files.generationLogs, "logs", "生成日志备份格式不正确");
-    if (files.accountDeletionRequests !== undefined && files.accountDeletionRequests !== null) validateArrayDatabase(files.accountDeletionRequests, "requests", "注销申请备份格式不正确");
 }
 
 function validateAuthBackup(value: unknown) {
@@ -170,7 +165,6 @@ async function createSafetyBackup(data: AdminBackupData, targetPath: string) {
             writeJsonDataFile(`${targetPath}/auth.json`, encryptAuthDbSecretsForStorage(data.auth)),
             writeJsonDataFile(`${targetPath}/prompts.json`, data.prompts),
             writeJsonDataFile(`${targetPath}/generation-logs.json`, data.generationLogs),
-            writeJsonDataFile(`${targetPath}/account-deletion-requests.json`, data.accountDeletionRequests),
         ]);
         return;
     }

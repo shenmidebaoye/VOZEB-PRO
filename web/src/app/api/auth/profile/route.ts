@@ -19,8 +19,6 @@ export async function PATCH(request: Request) {
         const user = await updateOwnProfile(currentUser.id, {
             displayName: typeof body.displayName === "string" ? body.displayName : undefined,
             bio: typeof body.bio === "string" ? body.bio : undefined,
-            email: typeof body.email === "string" ? body.email : undefined,
-            emailCode: typeof body.emailCode === "string" ? body.emailCode : undefined,
         });
         return NextResponse.json({ user: serializeCurrentUser(user) });
     } catch (error) {

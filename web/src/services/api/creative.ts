@@ -8,7 +8,6 @@ import {
     type CreativeProjectHandoff,
     type CreativeRunRequest,
 } from "@/lib/creative-runtime-contract";
-import { refreshUserPointsIfSystem } from "@/services/api/points";
 import { ClientSessionExpiredError, stopIfClientSessionExpired, throwIfClientSessionExpired } from "@/services/api/session-expiration";
 
 export type CreativeAgentRun = {
@@ -178,7 +177,6 @@ export function watchCreativeAgentRun(runId: string, handlers: CreativeRunHandle
         if (settled) return;
         settled = true;
         source.close();
-        void refreshUserPointsIfSystem("system");
         handlers.onTerminal(status, text);
     };
     const stopObservation = (message: string) => {
@@ -221,20 +219,17 @@ export function watchCreativeAgentRun(runId: string, handlers: CreativeRunHandle
     listen("run.planning.validating", () => handlers.onProgress("正在确认创作步骤，很快就可以开始…"));
     listen("skills.selected", () => handlers.onProgress("正在挑选更合适的创作方式…"));
     listen("run.planned", ({ data }) => {
-        void refreshUserPointsIfSystem("system");
         handlers.onProgress(text(data?.reply) || "方案已确定，正在创建任务");
     });
     listen("task.running", ({ data }) => handlers.onProgress(`正在处理「${text(data?.title) || "创作任务"}」`));
     listen("task.waiting", ({ data }) => handlers.onProgress(text(data?.error) || `「${text(data?.title) || "创作任务"}」仍在上游处理中，系统会继续恢复`));
     listen("task.child.completed", ({ data }) => {
-        void refreshUserPointsIfSystem("system");
         const progress = taskProgress(data);
         handlers.onProgress(taskProgressText(progress));
         handlers.onTaskCompleted?.(progress);
     });
     listen("task.child.failed", ({ data }) => handlers.onProgress(taskProgressText(taskProgress(data))));
     listen("task.completed", ({ data }) => {
-        void refreshUserPointsIfSystem("system");
         handlers.onProgress(text(data?.message) || `「${text(data?.title) || "创作任务"}」已完成`);
         handlers.onTaskCompleted?.();
     });
@@ -243,11 +238,9 @@ export function watchCreativeAgentRun(runId: string, handlers: CreativeRunHandle
     });
     listen("run.review.retry", () => handlers.onProgress("正在优化生成结果"));
     listen("run.review.passed", () => {
-        void refreshUserPointsIfSystem("system");
         handlers.onProgress("检查完成，正在整理结果");
     });
     listen("run.review.unavailable", () => {
-        void refreshUserPointsIfSystem("system");
         handlers.onProgress("正在整理已完成的创作结果");
     });
     listen("run.cancel.requested", () => handlers.onProgress("正在取消任务，等待子任务确认"));

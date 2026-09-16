@@ -15,10 +15,6 @@ import { processAgentRunReview } from "@/lib/server/agent-run-execution";
 import { getAgentRun, type AgentRun } from "@/lib/server/agent-run-store";
 import { hasCancellableUpstreamTaskId, isCancellationExecutionPhase, requestUpstreamGenerationCancellation, type GenerationCancellationTarget } from "@/lib/server/generation-task-cancellation-service";
 import { resolveModelRequestTimeoutMs } from "@/lib/server/model-request-policy";
-import { refundAudioTask } from "@/lib/server/audio-task-refund";
-import { refundImageTask } from "@/lib/server/image-task-refund";
-import { refundTextTask } from "@/lib/server/text-task-refund";
-import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { toSafeGenerationReviewReason } from "@/lib/server/generation-errors";
 import { getAuthSettings } from "@/lib/auth/store";
 
@@ -190,29 +186,8 @@ async function queryCancelledUpstream(target: GenerationCancellationTarget, orig
 }
 
 async function finishCancelledLease(target: GenerationCancellationTarget, lease: GenerationTaskLease, workerId: string, status: string) {
-    if (status !== "cancel_unconfirmed" && status !== "cancelled_task_missing") await refundCancelledTask(target);
     await releaseGenerationTaskLease(lease.type, lease.id, workerId, { executionPhase: "completed", nextPollAt: undefined, lastPollAt: Date.now(), lastUpstreamStatus: status }, { cancellation: true });
     await redactCancelledTaskSecret(target).catch((error) => console.warn("Cancelled generation task secret cleanup failed", { taskId: target.taskId, type: target.type, error: safeError(error) }));
-}
-
-async function refundCancelledTask(target: GenerationCancellationTarget) {
-    if (target.type === "image") {
-        const task = await getImageTask(target.taskId);
-        if (task) await refundImageTask(task);
-        return;
-    }
-    if (target.type === "video") {
-        const task = await getVideoTask(target.taskId);
-        if (task) await refundVideoTask(task);
-        return;
-    }
-    if (target.type === "audio") {
-        const task = await getAudioTask(target.taskId);
-        if (task) await refundAudioTask(task);
-        return;
-    }
-    const task = await getTextTask(target.taskId);
-    if (task) await refundTextTask(task);
 }
 
 async function redactCancelledTaskSecret(target: GenerationCancellationTarget) {

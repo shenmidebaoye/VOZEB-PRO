@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Download, Pencil, Share2, Trash2, X } from "lucide-react";
+import { Check, Download, Pencil, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { App, Button, Input } from "antd";
 import { useState } from "react";
@@ -97,7 +97,6 @@ export function CanvasProjectCard({ project }: { project: CanvasProjectSummary }
                     ) : (
                         <>
                             <Button type="text" size="small" shape="circle" loading={exporting} icon={<Download className="size-4" />} onClick={() => void exportProject()} aria-label="导出" />
-                            <Button type="text" size="small" shape="circle" icon={<Share2 className="size-4" />} onClick={() => router.push(`/works?sourceType=canvas&sourceId=${encodeURIComponent(project.id)}`)} aria-label="发布作品" />
                             <Button type="text" size="small" shape="circle" icon={<Pencil className="size-4" />} onClick={() => startEditing(project.id, project.title)} aria-label="重命名" />
                             <Button type="text" size="small" shape="circle" icon={<Trash2 className="size-4" />} onClick={() => setDeleteIds([project.id])} aria-label="删除" />
                         </>

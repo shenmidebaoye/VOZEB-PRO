@@ -1,11 +1,11 @@
-import { getAuthSettings, refundUserPoints } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { normalizeCreativeReview, unavailableCreativeReview, type CreativeFoundation, type CreativeMediaType, type CreativeReview } from "@/lib/creative-agent-contract";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
 import { resolveLogicalModel } from "@/lib/server/logical-model-router";
 import { fetchOptionalResponses } from "@/lib/server/responses-request";
 import { TEXT_MODEL_REQUEST_TIMEOUT_MS } from "@/lib/server/model-request-policy";
 import { strictJsonObjectText } from "@/lib/server/structured-model-output";
-import { hasSystemAiCharge, readSystemAiBilling, systemAiBillingHeaders, systemAiIdempotencyKey, type SystemAiBilling } from "@/lib/server/system-ai-billing";
+import { systemAiBillingHeaders, systemAiIdempotencyKey } from "@/lib/server/system-ai-billing";
 import { resolveSiteTitle } from "@/lib/site-brand";
 
 export type CreativeReviewTaskInput = {
@@ -17,7 +17,7 @@ export type CreativeReviewTaskInput = {
     imageUrls?: string[];
 };
 
-type ReviewCall = { arguments: string } & SystemAiBilling;
+type ReviewCall = { arguments: string };
 
 export async function reviewCreativeOutputs(input: { origin: string; cookie: string; userId: string; billingId?: string; foundation: CreativeFoundation; tasks: CreativeReviewTaskInput[] }): Promise<CreativeReview> {
     const validTaskIds = new Set(input.tasks.map((task) => task.id));
@@ -44,9 +44,14 @@ export async function reviewCreativeOutputs(input: { origin: string; cookie: str
 
     try {
         const idempotencyKey = input.billingId ? systemAiIdempotencyKey("creative-review", input.userId, input.billingId, resolved.channel.id) : undefined;
-        const headers = { "Content-Type": "application/json", cookie: input.cookie, ...systemAiBillingHeaders(model, idempotencyKey, resolved.upstreamModel) };
-        let call = await callResponses(input.origin, resolved.channel.id, resolved.upstreamModel, responsesInput, headers, input.userId, model);
-        if (!call) call = await callChat(input.origin, resolved.channel.id, resolved.upstreamModel, chatMessages, headers, input.userId, model);
+        const headers = {
+            "Content-Type": "application/json",
+            cookie: input.cookie,
+            ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey, "X-Client-Request-Id": idempotencyKey } : {}),
+            ...systemAiBillingHeaders(model, idempotencyKey, resolved.upstreamModel),
+        };
+        let call = await callResponses(input.origin, resolved.channel.id, resolved.upstreamModel, responsesInput, headers);
+        if (!call) call = await callChat(input.origin, resolved.channel.id, resolved.upstreamModel, chatMessages, headers);
         if (!call) return unavailableCreativeReview("默认文本模型没有返回有效复盘结果，生成结果已保留。");
         let review: CreativeReview | null = null;
         try {
@@ -55,14 +60,13 @@ export async function reviewCreativeOutputs(input: { origin: string; cookie: str
             review = null;
         }
         if (review) return { ...review, mode };
-        if (hasSystemAiCharge(call)) await refundUserPoints(input.userId, model, call.pointsCost, "text", 1, undefined, call.pointsRecordId);
-        return unavailableCreativeReview("默认文本模型返回了无效复盘结构，相关积分已退款，生成结果已保留。");
+        return unavailableCreativeReview("默认文本模型返回了无效复盘结构，生成结果已保留。");
     } catch {
         return unavailableCreativeReview("自动复盘服务暂时不可用，生成结果已保留，可稍后根据实际画面继续调整。");
     }
 }
 
-async function callResponses(origin: string, channelId: string, upstreamModel: string, input: unknown[], headers: Record<string, string>, userId: string, billingModel: string) {
+async function callResponses(origin: string, channelId: string, upstreamModel: string, input: unknown[], headers: Record<string, string>) {
     const response = await fetchOptionalResponses(`${origin}/api/ai/system/${encodeURIComponent(channelId)}/responses`, {
         method: "POST",
         headers,
@@ -72,12 +76,11 @@ async function callResponses(origin: string, channelId: string, upstreamModel: s
     if (!response?.ok) return null;
     const payload = (await response.json()) as { output?: Array<{ type?: string; name?: string; arguments?: string }> };
     const argumentsText = payload.output?.find((item) => item.type === "function_call" && item.name === reviewTool.name)?.arguments;
-    if (argumentsText) return readCall(argumentsText, response.headers);
-    await refundResponse(userId, billingModel, response.headers);
+    if (argumentsText) return readCall(argumentsText);
     return null;
 }
 
-async function callChat(origin: string, channelId: string, upstreamModel: string, messages: unknown[], headers: Record<string, string>, userId: string, billingModel: string) {
+async function callChat(origin: string, channelId: string, upstreamModel: string, messages: unknown[], headers: Record<string, string>) {
     const response = await fetchInternalApi(`${origin}/api/ai/system/${encodeURIComponent(channelId)}/chat/completions`, {
         method: "POST",
         headers,
@@ -94,8 +97,7 @@ async function callChat(origin: string, channelId: string, upstreamModel: string
     const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string; tool_calls?: Array<{ function?: { name?: string; arguments?: string } }> } }> };
     const message = payload.choices?.[0]?.message;
     const argumentsText = message?.tool_calls?.find((item) => item.function?.name === reviewTool.name)?.function?.arguments || strictJsonObjectText(message?.content);
-    if (argumentsText) return readCall(argumentsText, response.headers);
-    await refundResponse(userId, billingModel, response.headers);
+    if (argumentsText) return readCall(argumentsText);
     return null;
 }
 
@@ -123,16 +125,8 @@ async function normalizeReviewImage(value: string, origin: string, cookie: strin
     }
 }
 
-function readCall(argumentsText: string, headers: Headers): ReviewCall {
-    return {
-        arguments: argumentsText,
-        ...readSystemAiBilling(headers),
-    };
-}
-
-async function refundResponse(userId: string, model: string, headers: Headers) {
-    const billing = readSystemAiBilling(headers);
-    if (hasSystemAiCharge(billing)) await refundUserPoints(userId, model, billing.pointsCost, "text", 1, undefined, billing.pointsRecordId);
+function readCall(argumentsText: string): ReviewCall {
+    return { arguments: argumentsText };
 }
 
 const reviewTool = {

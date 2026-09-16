@@ -1,15 +1,13 @@
 "use client";
 
 import { App, Button, Popconfirm, Tag, Tooltip } from "antd";
-import { ArrowUpRight, Clapperboard, Share2, Trash2 } from "lucide-react";
+import { ArrowUpRight, Clapperboard, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import type { DramaProjectSummary } from "../types";
 import { useDramaStore } from "../stores/use-drama-store";
 
 export function DramaProjectCard({ project }: { project: DramaProjectSummary }) {
-    const router = useRouter();
     const { message } = App.useApp();
     const deleteProject = useDramaStore((state) => state.deleteProject);
     const pendingCount = project.pendingTaskCount;
@@ -56,9 +54,6 @@ export function DramaProjectCard({ project }: { project: DramaProjectSummary }) 
                             />
                         </Tooltip>
                     </Popconfirm>
-                    <Button className="!h-8 !px-2.5" icon={<Share2 className="size-3.5" />} onClick={() => router.push(`/works?sourceType=drama&sourceId=${encodeURIComponent(project.id)}`)}>
-                        发布
-                    </Button>
                 </div>
             </div>
         </article>

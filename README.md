@@ -398,14 +398,18 @@ VOZEB PRO 调用外部 AI 模型，不要求 GPU。服务器主要承担 Web、P
 
 ### 本机创作工具
 
+本机默认使用文件数据库。`pnpm start` 在未设置 `VOZEB_PRO_DATABASE_PROVIDER` 时自动使用 `file`，不会改动 Docker 生产默认值。
+
 ```bash
 cd web && pnpm install
-# 配置 web/.env.local（至少 VOZEB_PRO_DATABASE_PROVIDER=file 与 VOZEB_PRO_ENCRYPTION_KEY）
+# 可选 web/.env.local：
+# VOZEB_PRO_DATABASE_PROVIDER=file
+# VOZEB_PRO_ENCRYPTION_KEY=<openssl rand -hex 32>
 pnpm start          # 仓库根目录
 # 或：pnpm --dir web start:local
 ```
 
-浏览器打开 `http://127.0.0.1:3000`，进入 `/create` 创作，在 `/settings` 配置渠道与站点。
+浏览器打开 `http://127.0.0.1:3000`，进入 `/create` 创作，在 `/settings` 配置渠道、Skills、站点、存储与备份。
 
 ### Docker Compose
 
@@ -552,7 +556,6 @@ pnpm run dev
 
 ```bash
 cd web
-pnpm test
 pnpm run typecheck
 pnpm run format:check
 pnpm run build

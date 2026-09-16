@@ -1,26 +1,19 @@
 "use client";
 
-import { GenerationLogDetail } from "@/components/admin/admin-generation-log";
 import { AdminSectionNav } from "@/components/admin/admin-section-nav";
 import type { AdminSectionKey } from "@/components/admin/admin-sections";
-import { Button, Form, Input, Modal } from "antd";
-import { ArrowRight, Copy, Menu, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, Menu, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
-import type { AuthSettings, PublicUser, PublicUserSummary } from "@/lib/auth/store";
+import type { AuthSettings, PublicUser } from "@/lib/auth/store";
 import type { AdminSetupSummary } from "@/lib/server/admin-setup-status";
-import { CdkRedemptionDetail } from "./admin-dashboard-elements";
-import { AdminUserEditorModal } from "./admin-user-editor-modal";
 import { useAdminDashboardController } from "./use-admin-dashboard-controller";
 
 type AdminDashboardProps = {
-    initialUsers: PublicUser[];
-    initialUserSummary: PublicUserSummary;
     initialSettings: AuthSettings;
-    initialPromptCount: number;
     currentUser: PublicUser;
     initialSection?: AdminSectionKey;
     setupSummary?: AdminSetupSummary;
@@ -67,35 +60,14 @@ export function AdminDashboard(props: AdminDashboardProps) {
         currentUser,
         setupSummary,
         headerActions,
-        promptForm,
         logoInputRef,
         iconInputRef,
-        promptCount,
-        assetStats,
-        promptSaving,
-        operationsSummaryLoading,
-        viewingGenerationLog,
-        setViewingGenerationLog,
-        billingSummary,
-        billingSummaryLoading,
-        viewingCdkCode,
-        setViewingCdkCode,
-        promptModalOpen,
         activeSection,
         setActiveSection,
         mobileNavOpen,
         setMobileNavOpen,
         desktopNavCollapsed,
         setDesktopNavCollapsed,
-        stats,
-        settingsSummary,
-        walletSummary,
-        operationsSummary,
-        loadBillingSummary,
-        loadOperationsSummary,
-        createPrompt,
-        copyCdkPlainCode,
-        closePromptModal,
         uploadSiteLogo,
         uploadSiteIcon,
         activeSectionInfo,
@@ -103,7 +75,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
     } = controller;
     return (
         <div data-hydrated={hydrated ? "true" : "false"} className={`admin-mobile-safe admin-dashboard-shell min-h-dvh w-full min-w-0 ${desktopNavCollapsed ? "is-sidebar-collapsed" : ""}`}>
-            {mobileNavOpen ? <button type="button" className="admin-section-nav-backdrop lg:hidden" aria-label="收起后台侧边栏" onClick={() => setMobileNavOpen(false)} /> : null}
+            {mobileNavOpen ? <button type="button" className="admin-section-nav-backdrop lg:hidden" aria-label="收起设置侧边栏" onClick={() => setMobileNavOpen(false)} /> : null}
             <AdminSectionNav
                 activeKey={activeSection}
                 currentUser={currentUser}
@@ -122,7 +94,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                             <button
                                 type="button"
                                 className="admin-mobile-menu-trigger flex size-9 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900 lg:hidden"
-                                aria-label="展开后台侧边栏"
+                                aria-label="展开设置侧边栏"
                                 onClick={() => setMobileNavOpen(true)}
                             >
                                 <Menu className="size-4" />
@@ -136,7 +108,7 @@ export function AdminDashboard(props: AdminDashboardProps) {
                         <div className="admin-dashboard-actions flex min-w-0 items-center gap-2 sm:justify-end">
                             {setupSummary && nextSetupStep ? (
                                 <Link
-                                    href="/settings"
+                                    href={nextSetupStep.href}
                                     title={`下一项：${nextSetupStep.title}`}
                                     className="admin-dashboard-setup-pill group flex min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-left transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
                                 >
@@ -175,76 +147,6 @@ export function AdminDashboard(props: AdminDashboardProps) {
                     {activeSection === "skills" ? <AdminSkillsSection controller={controller} /> : null}
                 </div>
             </div>
-
-            <Modal
-                title="添加公共提示词"
-                open={promptModalOpen}
-                okText="保存提示词"
-                cancelText="取消"
-                confirmLoading={promptSaving}
-                mask={{ closable: !promptSaving }}
-                keyboard={!promptSaving}
-                width={760}
-                onOk={() => promptForm.submit()}
-                onCancel={closePromptModal}
-            >
-                <Form className="admin-prompt-form" form={promptForm} layout="vertical" requiredMark={false} onFinish={createPrompt}>
-                    <div className="max-h-[min(68dvh,680px)] overflow-y-auto pr-1">
-                        <div className="admin-prompt-note mb-5 rounded-xl p-4">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-stone-950 dark:text-stone-100">
-                                <Plus className="size-4 text-stone-600 dark:text-stone-300" />
-                                新增公共提示词
-                            </div>
-                            <p className="mt-1 text-xs leading-5 text-stone-600 dark:text-stone-400">建议填写远程图片封面 URL，用户端会直接显示封面，不走本地素材存储。</p>
-                        </div>
-                        <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                            <Form.Item label="提示词标题" name="title" rules={[{ required: true, message: "请输入标题" }]}>
-                                <Input placeholder="例如：赛博城市海报" />
-                            </Form.Item>
-                            <Form.Item label="分类" name="category">
-                                <Input placeholder="商业海报 / 人像 / 产品" />
-                            </Form.Item>
-                        </div>
-                        <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                            <Form.Item label="标签" name="tags">
-                                <Input placeholder="用逗号分隔，例如：霓虹, 海报, 科幻" />
-                            </Form.Item>
-                            <Form.Item label="封面 URL" name="coverUrl">
-                                <Input placeholder="https://example.com/image.png" />
-                            </Form.Item>
-                        </div>
-                        <Form.Item label="提示词内容" name="prompt" rules={[{ required: true, message: "请输入提示词内容" }]}>
-                            <Input.TextArea rows={7} placeholder="写入可直接用于生成的完整提示词，支持中英文描述。" />
-                        </Form.Item>
-                        <Form.Item label="备注 / 预览说明" name="preview">
-                            <Input.TextArea rows={3} placeholder="可补充适用场景、参数建议或出图效果。" />
-                        </Form.Item>
-                    </div>
-                </Form>
-            </Modal>
-            <AdminUserEditorModal controller={controller} />
-            <Modal title="生成日志详情" open={Boolean(viewingGenerationLog)} footer={null} onCancel={() => setViewingGenerationLog(null)} width={860}>
-                {viewingGenerationLog ? <GenerationLogDetail log={viewingGenerationLog} /> : null}
-            </Modal>
-            <Modal title="CDK 明细" open={Boolean(viewingCdkCode)} footer={null} onCancel={() => setViewingCdkCode(null)} width={760}>
-                {viewingCdkCode ? (
-                    <div className="space-y-3">
-                        <div className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 dark:border-stone-800 dark:bg-stone-900/60">
-                            <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="text-sm font-semibold text-stone-950 dark:text-stone-100">兑换码</div>
-                                <Button size="small" icon={<Copy className="size-3.5" />} disabled={!viewingCdkCode.code} onClick={() => void copyCdkPlainCode(viewingCdkCode)}>
-                                    复制明文
-                                </Button>
-                            </div>
-                            <div className="break-all rounded-md border border-stone-200 bg-white px-3 py-2 font-mono text-sm font-semibold text-stone-950 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-100">
-                                {viewingCdkCode.code || "CDK 明文不可用"}
-                            </div>
-                            {!viewingCdkCode.code ? <div className="mt-2 text-xs text-stone-500 dark:text-stone-400">这个 CDK 没有可复制的明文。</div> : null}
-                        </div>
-                        <CdkRedemptionDetail code={viewingCdkCode} />
-                    </div>
-                ) : null}
-            </Modal>
             <input
                 ref={logoInputRef}
                 type="file"

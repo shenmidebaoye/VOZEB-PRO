@@ -1,6 +1,4 @@
 import type { ApiCallFormat, AuthSettings, SystemModelChannel } from "@/lib/auth/store";
-import { hasAdminPermission } from "@/lib/admin-permissions";
-import { DEFAULT_SETTINGS } from "@/lib/auth/store-foundation";
 import { isEncryptedSecretValue } from "@/lib/server/secret-crypto";
 
 type ChannelCredentialInput = {
@@ -26,18 +24,8 @@ export function serializeAdminSettings(settings: AuthSettings): AuthSettings {
     };
 }
 
-export function serializeAdminSettingsForUser(settings: AuthSettings, user: { role?: unknown; status?: unknown; adminPermissions?: unknown }): AuthSettings {
-    const serialized = serializeAdminSettings(settings);
-    if (!hasAdminPermission(user, "system.manage")) {
-        serialized.mail = { ...DEFAULT_SETTINGS.mail };
-        serialized.dataLifecycle = { ...DEFAULT_SETTINGS.dataLifecycle };
-    }
-    if (!hasAdminPermission(user, "upstream.manage")) {
-        serialized.generationCostControl = { ...DEFAULT_SETTINGS.generationCostControl };
-        serialized.agentSkills = [];
-        serialized.systemChannels = serialized.systemChannels.map(channelSummaryWithoutConfiguration);
-    }
-    return serialized;
+export function serializeAdminSettingsForUser(settings: AuthSettings, _user?: { role?: unknown; status?: unknown; adminPermissions?: unknown }): AuthSettings {
+    return serializeAdminSettings(settings);
 }
 
 export function mergeSystemChannelSecrets(channels: SystemModelChannel[], savedChannels: SystemModelChannel[]) {
@@ -124,16 +112,4 @@ function channelWithoutSecretControls(channel: SystemModelChannel) {
     delete result.hasWebhookSecret;
     delete result.clearWebhookSecret;
     return result;
-}
-
-function channelSummaryWithoutConfiguration(channel: SystemModelChannel): SystemModelChannel {
-    return {
-        id: channel.id,
-        name: channel.name,
-        baseUrl: "",
-        apiKey: "",
-        apiFormat: channel.apiFormat,
-        models: [...channel.models],
-        enabled: channel.enabled,
-    };
 }

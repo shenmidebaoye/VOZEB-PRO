@@ -15,7 +15,7 @@ import { getDramaProject } from "./drama-project-store";
 
 export type AgentRunStatus = "planning" | "running" | "paused" | "completed" | "failed" | "cancelled";
 export type AgentRunReviewStatus = "review_pending" | "reviewing" | "review_completed" | "review_unavailable";
-export type AgentRunFailureStage = "planning" | "task_execution" | "refund";
+export type AgentRunFailureStage = "planning" | "task_execution";
 export type AgentRunCandidateFailure = { channelId: string; upstreamModel: string; error: string };
 export type AgentRunReference = {
     assetId?: string;

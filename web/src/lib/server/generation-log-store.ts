@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { relative, resolve } from "node:path";
 
-import { getAuthSettings, type UserRole } from "@/lib/auth/store";
+import { getAuthSettings } from "@/lib/auth/store";
 import { createPostgresRepositories, ensurePostgresSchema, isPostgresDatabaseEnabled, withPostgresTransaction } from "@/lib/server/database";
 import { collectLocalMediaStorageKeys, countLocalMediaReferences, localMediaStorageKeyFromValue } from "@/lib/server/local-media-references";
 import { deleteLocalMediaAssetsByStorageKeys, deleteUserLocalMediaAssets, GENERATION_MEDIA_ROOT } from "@/lib/server/local-media-storage";
@@ -240,8 +240,7 @@ export async function cleanupUnreferencedGenerationAssets() {
     };
 }
 
-export async function canAccessGenerationAsset(userId: string, role: UserRole, url: string) {
-    if (role === "admin") return true;
+export async function canAccessGenerationAsset(userId: string, url: string) {
     const storageKey = localMediaStorageKeyFromValue(url);
     if (storageKey) {
         const registration = await getLocalMediaRegistration(storageKey);

@@ -7,7 +7,7 @@ import { agentPlannerSystemPrompt, agentPlanReply, buildAgentPlannerInput, conve
 import { getCreativeAssetsByIds, getCreativeConversationContext, listRecentCreativeMediaAssets } from "@/lib/server/creative-runtime-store";
 import { toSafeGenerationErrorMessage } from "@/lib/server/generation-errors";
 import { parseAgentPlanCall, type AgentFunctionCallResult } from "./agent-function-call";
-import { agentModelOptions, agentPlanFallbackExample, agentPlanTool, canContinue, directAgentPlan, directGenerationPreferences, executeTasks, normalizeTasks, planToOps, refundFunctionCall, requestFunctionCall } from "./agent-run-execution";
+import { agentModelOptions, agentPlanFallbackExample, agentPlanTool, canContinue, directAgentPlan, directGenerationPreferences, executeTasks, normalizeTasks, planToOps, requestFunctionCall } from "./agent-run-execution";
 import { isExplicitProjectHandoffRequest, normalizeAgentProjectHandoff } from "./agent-run-project-handoff";
 import { normalizeCanvasPlanForSelection } from "./agent-run-task-input";
 import { GenerationSubmissionUncertainError } from "@/lib/server/generation-submission-error";
@@ -30,14 +30,8 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
     const controller = new AbortController();
     const executionId = nanoid();
     let acceptedPlan: { userId: string; model: string; channelId: string; upstreamModel: string; call: AgentFunctionCallResult } | undefined;
-    let planningPersisted = false;
     let failureStage: NonNullable<AgentRun["failureStage"]> = run.tasks.length ? "task_execution" : "planning";
     const candidateFailures: NonNullable<AgentRun["candidateFailures"]> = [];
-    const refundAcceptedPlan = async () => {
-        if (!acceptedPlan || planningPersisted) return;
-        await refundFunctionCall(acceptedPlan.userId, acceptedPlan.model, acceptedPlan.call);
-        acceptedPlan = undefined;
-    };
     controllers.set(run.id, controller);
     try {
         const claimed = await updateAgentRunById(
@@ -157,7 +151,7 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                     ["running"],
                     executionId,
                 );
-                plan = await parseAgentPlanCall(planCall, () => refundFunctionCall(claimed.userId, model, planCall), undefined, {
+                plan = await parseAgentPlanCall(planCall, async () => undefined, undefined, {
                     allowProjectHandoff: claimed.surface === "chat" && isExplicitProjectHandoffRequest(claimed.prompt),
                     requiredGenerationMode: claimed.generationPreferences?.mode,
                 });
@@ -179,12 +173,9 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             upstreamModel: acceptedPlan?.upstreamModel,
             protocol: acceptedPlan?.call.protocol,
             elapsedMs: acceptedPlan?.call.elapsedMs,
-            pointsCost: acceptedPlan?.call.pointsCost,
-            pointsRecordId: acceptedPlan?.call.pointsRecordId,
             skills,
         });
         if (!(await canContinue(run.id, executionId))) {
-            await refundAcceptedPlan();
             return;
         }
         if (plan.intent === "conversation") {
@@ -203,10 +194,8 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
                 executionId,
             );
             if (!completed) {
-                await refundAcceptedPlan();
                 return;
             }
-            planningPersisted = true;
             return;
         }
         const tasks = normalizeTasks(plan, skills, settings, claimed.snapshot, claimed.prompt, claimed.surface, referencedAssets, claimed.requestedImageSize, claimed.generationPreferences);
@@ -221,21 +210,12 @@ export async function executeAgentRun(run: AgentRun, origin: string, cookie: str
             executionId,
         );
         if (!planned) {
-            await refundAcceptedPlan();
             return;
         }
-        planningPersisted = true;
         failureStage = "task_execution";
         await executeTasks(run.id, origin, cookie, executionId, settings);
     } catch (error) {
-        let failure = error;
-        try {
-            await refundAcceptedPlan();
-        } catch (refundError) {
-            console.error("Agent planning refund failed", refundError instanceof Error ? refundError.message : refundError);
-            failure = refundError;
-            failureStage = "refund";
-        }
+        const failure = error;
         const latest = await getAgentRun(run.id);
         if (latest && !["paused", "cancelled"].includes(latest.status))
             await updateAgentRunById(

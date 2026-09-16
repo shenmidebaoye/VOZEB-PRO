@@ -18,7 +18,7 @@ export function resolveGenerationReviewReason(input: { executionPhase?: string; 
         case "submission_outcome_unknown":
             return UNKNOWN_SUBMISSION_REVIEW_ERROR;
         default:
-            return "上游创建结果待确认；为避免重复生成和扣费，系统已停止自动重试。";
+            return "上游创建结果待确认；为避免重复生成，系统已停止自动重试。";
     }
 }
 

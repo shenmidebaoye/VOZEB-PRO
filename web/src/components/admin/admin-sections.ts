@@ -1,19 +1,6 @@
-import { hasAnyAdminPermission, type AdminPermission } from "@/lib/admin-permissions";
-
 export const ADMIN_SECTION_KEYS = ["channels", "skills", "site", "settings", "mediaStorage", "externalStorage", "backup", "updates"] as const;
 
 export type AdminSectionKey = (typeof ADMIN_SECTION_KEYS)[number];
-
-export const ADMIN_SECTION_PERMISSIONS: Record<AdminSectionKey, readonly AdminPermission[]> = {
-    channels: [],
-    skills: [],
-    site: [],
-    settings: [],
-    mediaStorage: [],
-    externalStorage: [],
-    backup: [],
-    updates: [],
-};
 
 const adminSectionKeys = new Set<AdminSectionKey>(ADMIN_SECTION_KEYS);
 
@@ -29,15 +16,11 @@ export function adminSectionHref(section: AdminSectionKey, currentHref = "/setti
     return `${url.pathname}${url.search}${url.hash}`;
 }
 
-export function canAccessAdminSection(_user: { role?: unknown; status?: unknown; adminPermissions?: unknown }, _section: AdminSectionKey) {
+export function canAccessAdminSection(_user: { status?: unknown } | null | undefined, _section: AdminSectionKey) {
     return true;
 }
 
-export function resolveAdminSection(user: { role?: unknown; status?: unknown; adminPermissions?: unknown }, preferred: AdminSectionKey) {
+export function resolveAdminSection(user: { status?: unknown } | null | undefined, preferred: AdminSectionKey) {
     if (canAccessAdminSection(user, preferred)) return preferred;
     return ADMIN_SECTION_KEYS.find((section) => canAccessAdminSection(user, section)) || null;
-}
-
-export function hasAdminSectionPermission(user: { role?: unknown; status?: unknown; adminPermissions?: unknown }, permissions: readonly AdminPermission[]) {
-    return permissions.length ? hasAnyAdminPermission(user, permissions) : true;
 }

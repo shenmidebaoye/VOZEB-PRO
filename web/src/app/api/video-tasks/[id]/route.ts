@@ -4,11 +4,9 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readJsonBodyResult } from "@/lib/auth/request";
 import { getVideoTask, transitionVideoTask } from "@/lib/server/video-task-store";
 import { resolveInternalOrigin } from "@/lib/server/internal-origin";
-import { pointsResponseHeaders } from "@/lib/server/points-response";
 import { generationModelId } from "@/lib/server/generation-channel";
 import { runGenerationTaskRecoveryBatch } from "@/lib/server/generation-task-recovery-service";
 import { cancellationExecutionPatch, type GenerationCancellationTarget } from "@/lib/server/generation-task-cancellation-service";
-import { refundVideoTask } from "@/lib/server/video-task-refund";
 import { getStoredGenerationTaskRecord } from "@/lib/server/generation-task-store";
 import { writeVideoGenerationLog } from "@/lib/server/video-task-log";
 import { recoverGenerationTaskFromUpstream } from "@/lib/server/generation-task-user-recovery";
@@ -20,26 +18,22 @@ export const maxDuration = 2400;
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser(request);
     const task = user ? await getVideoTask((await params).id) : null;
-    if (!user || !task || (task.userId !== user.id && user.role !== "admin")) return NextResponse.json({ error: "视频任务不存在" }, { status: user ? 404 : 401 });
+    if (!user || !task || task.userId !== user.id) return NextResponse.json({ error: "视频任务不存在" }, { status: user ? 404 : 401 });
     const schedule = await getStoredGenerationTaskRecord("video", task.id);
     const executionPhase = schedule?.executionPhase || settledExecutionPhase(task.status);
-    const shouldRefund = Boolean(task.upstream.pointsRecordId && !task.upstream.refunded && task.status === "error");
-    const settledTask = shouldRefund ? await refundVideoTask(task) : task;
-    const refreshedUser = shouldRefund ? await getCurrentUser(request) : user;
-    return NextResponse.json(
-        { task: { ...publicTask(settledTask), needsReview: executionPhase === "needs_review", reviewReason: executionPhase === "needs_review" ? task.reviewReason : undefined, executionPhase } },
-        { headers: pointsResponseHeaders(refreshedUser) },
-    );
+    return NextResponse.json({
+        task: { ...publicTask(task), needsReview: executionPhase === "needs_review", reviewReason: executionPhase === "needs_review" ? task.reviewReason : undefined, executionPhase },
+    });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser(request);
     const task = user ? await getVideoTask((await params).id) : null;
-    if (!user || !task || (task.userId !== user.id && user.role !== "admin")) return NextResponse.json({ error: "视频任务不存在" }, { status: user ? 404 : 401 });
+    if (!user || !task || task.userId !== user.id) return NextResponse.json({ error: "视频任务不存在" }, { status: user ? 404 : 401 });
     const parsed = await readJsonBodyResult<{ action?: string }>(request);
     if (!parsed.ok) return NextResponse.json({ error: parsed.message }, { status: parsed.status });
     if (parsed.data.action !== "recover") return NextResponse.json({ error: "不支持的视频任务操作" }, { status: 400 });
-    if (task.status === "success") return NextResponse.json({ task: publicTask(task) }, { headers: pointsResponseHeaders(user) });
+    if (task.status === "success") return NextResponse.json({ task: publicTask(task) });
     if (task.status !== "running") return NextResponse.json({ error: "当前视频任务无法继续检查" }, { status: 409 });
 
     const schedule = await getStoredGenerationTaskRecord("video", task.id);
@@ -60,17 +54,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const latest = await getVideoTask(task.id);
     const latestSchedule = await getStoredGenerationTaskRecord("video", task.id);
     if (!latest) return NextResponse.json({ error: "视频任务不存在" }, { status: 404 });
-    return NextResponse.json(
-        { task: { ...publicTask(latest), needsReview: latestSchedule?.executionPhase === "needs_review", reviewReason: latestSchedule?.executionPhase === "needs_review" ? latest.reviewReason : undefined, executionPhase: latestSchedule?.executionPhase } },
-        { headers: pointsResponseHeaders(latest.status === "error" ? await getCurrentUser(request) : user) },
-    );
+    return NextResponse.json({
+        task: { ...publicTask(latest), needsReview: latestSchedule?.executionPhase === "needs_review", reviewReason: latestSchedule?.executionPhase === "needs_review" ? latest.reviewReason : undefined, executionPhase: latestSchedule?.executionPhase },
+    });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const user = await getCurrentUser(request);
     const id = (await params).id;
     const task = user ? await getVideoTask(id) : null;
-    if (!user || !task || (task.userId !== user.id && user.role !== "admin")) return NextResponse.json({ error: "视频任务不存在" }, { status: user ? 404 : 401 });
+    if (!user || !task || task.userId !== user.id) return NextResponse.json({ error: "视频任务不存在" }, { status: user ? 404 : 401 });
     const schedule = await getStoredGenerationTaskRecord("video", task.id);
     const executionPhase = schedule?.executionPhase || settledExecutionPhase(task.status);
     const parsed = await readJsonBodyResult<{ action?: string; status?: string; result?: unknown; error?: unknown }>(request);
@@ -95,8 +88,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     await writeVideoGenerationLog(next, "failed", "任务已取消", false).catch((error) => console.warn("Cancelled video generation log update failed", { taskId: task.id, error }));
     const origin = resolveInternalOrigin(new URL(request.url).origin);
     after(() => runGenerationTaskRecoveryBatch({ origin, limit: 1, taskIds: [task.id] }));
-    const refreshedUser = await getCurrentUser();
-    return NextResponse.json({ task: publicTask(next) }, { headers: pointsResponseHeaders(refreshedUser) });
+    return NextResponse.json({ task: publicTask(next) });
 }
 
 type VideoTask = NonNullable<Awaited<ReturnType<typeof getVideoTask>>>;

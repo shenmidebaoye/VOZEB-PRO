@@ -5,7 +5,24 @@ description: 使用 PostgreSQL、Docker Compose 或源码启动 VOZEB PRO
 
 # 快速开始
 
-VOZEB PRO 默认使用 PostgreSQL。推荐通过 Docker Compose 启动主应用与 PostgreSQL，再使用安装向导创建第一个管理员。
+本机创作工具默认使用文件数据库：`pnpm start` 在未设置 `VOZEB_PRO_DATABASE_PROVIDER` 时自动使用 `file`。Docker 与正式部署仍默认 PostgreSQL。
+
+## 本机创作工具
+
+```bash
+cd web && pnpm install
+pnpm start
+```
+
+可选 `web/.env.local`：
+
+```dotenv
+VOZEB_PRO_DATABASE_PROVIDER=file
+VOZEB_PRO_ENCRYPTION_KEY=填写 openssl rand -hex 32 的输出
+NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000
+```
+
+浏览器打开 `http://127.0.0.1:3000`。就绪后进入 `/create`，在 `/settings` 配置渠道、Skills、站点、存储与备份。
 
 ## 最低服务器配置
 

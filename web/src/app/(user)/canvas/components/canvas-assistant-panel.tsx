@@ -10,7 +10,6 @@ import { nanoid } from "nanoid";
 import { controlCreativeAgentRun, createCreativeAgentRun, listCreativeAgentRuns, retryCreativeAgentTask } from "@/services/api/creative";
 import { updateCreativeConversation } from "@/services/api/creative";
 import { deleteCanvasAssistantConversations } from "@/services/api/canvas-projects";
-import { refreshUserPointsIfSystem } from "@/services/api/points";
 import { useThemeStore } from "@/stores/use-theme-store";
 import { useUserStore } from "@/stores/use-user-store";
 import { CREATIVE_RUN_MODEL_LIMIT, type CreativeGenerationPreferences } from "@/lib/creative-runtime-contract";
@@ -325,7 +324,6 @@ export function CanvasAssistantPanel({ nodes, selectedNodeIds, snapshot, session
             } finally {
                 if (runWatchControllersRef.current.get(runId) === controller) runWatchControllersRef.current.delete(runId);
                 if (!controller.signal.aborted) {
-                    await refreshUserPointsIfSystem("system");
                     releaseSessionRun(sessionId, runId);
                 }
             }

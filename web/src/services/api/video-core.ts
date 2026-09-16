@@ -9,7 +9,6 @@ import { GENERATION_TASK_NEEDS_REVIEW_MESSAGE, GenerationTaskNeedsReviewError, t
 import { GenerationTaskRequestError, readGenerationRetryAfterMs } from "@/services/api/generation-task-request-error";
 import { imageToDataUrl } from "@/services/image-storage";
 import { parseServerMediaUrl, serverMediaUrl, type ServerMediaType } from "@/services/server-media-storage";
-import { refreshUserPointsIfSystem, syncUserPointsFromHeaders } from "@/services/api/points";
 import { throwIfClientSessionExpired } from "@/services/api/session-expiration";
 import { boolConfig, buildSeedancePromptText, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio, normalizeSeedanceResolution, seedanceVideoReferenceError, SEEDANCE_REFERENCE_LIMITS } from "@/lib/seedance-video";
 import { buildApiUrl, modelOptionName, resolveModelRequestConfig, type AiConfig } from "@/stores/use-config-store";
@@ -116,17 +115,14 @@ export async function waitForVideoGenerationTask(config: AiConfig, task: VideoGe
         if (options?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
         const state = await pollVideoGenerationTask(config, task, options);
         if (state.status === "completed") {
-            await refreshUserPointsIfSystem(resolveModelRequestConfig(config, task.model).apiSource);
             return state.result;
         }
         if (state.status === "failed") {
-            await refreshUserPointsIfSystem(resolveModelRequestConfig(config, task.model).apiSource);
             if (state.needsReview) throw new GenerationTaskNeedsReviewError(state.error);
             throw new VideoGenerationUpstreamError(state.error, state.canRetry !== false);
         }
         await delay(delayMs, options?.signal);
     }
-    await refreshUserPointsIfSystem(resolveModelRequestConfig(config, task.model).apiSource);
     throw new VideoGenerationWaitTimeoutError();
 }
 
@@ -271,7 +267,6 @@ export async function pollVideoGenerationTask(config: AiConfig, task: VideoGener
 export async function pollServerVideoTask(task: VideoGenerationTask, options?: RequestOptions): Promise<VideoGenerationTaskState> {
     const response = await fetch(`/api/video-tasks/${encodeURIComponent(task.serverTaskId || task.id)}`, { cache: "no-store", signal: options?.signal });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, "system");
     const payload = (await response.json().catch(() => ({}))) as ServerVideoTaskPayload;
     if (!response.ok) throw new Error(payload.error || "后台视频任务查询失败");
     return serverVideoTaskState(payload.task);
@@ -286,7 +281,6 @@ export async function recoverVideoGenerationTask(task: VideoGenerationTask, opti
         signal: options?.signal,
     });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, "system");
     const payload = (await response.json().catch(() => ({}))) as ServerVideoTaskPayload;
     if (!response.ok || !payload.task) throw new Error(payload.error || "重新检查视频任务失败");
     const state = serverVideoTaskState(payload.task);
@@ -333,7 +327,6 @@ export async function cancelServerVideoGenerationTask(task: VideoGenerationTask)
         body: JSON.stringify({ action: "cancel" }),
     });
     throwIfClientSessionExpired(response);
-    syncUserPointsFromHeaders(response.headers, "system");
     const payload = (await response.json().catch(() => ({}))) as { task?: { id?: string; status?: string }; error?: string };
     if (!response.ok) throw new Error(payload.error || "视频任务取消失败");
     if (payload.task?.status !== "cancelled") throw new Error(payload.error || "视频任务尚未取消");

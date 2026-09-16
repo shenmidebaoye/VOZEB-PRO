@@ -1,6 +1,6 @@
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 import { parseAdminSection, resolveAdminSection } from "@/components/admin/admin-sections";
-import { getFreshAuthSettings, getPublicUserSummary } from "@/lib/auth/store";
+import { getFreshAuthSettings } from "@/lib/auth/store";
 import { getAdminSetupSummary } from "@/lib/server/admin-setup-status";
 import { serializeAdminSettingsForUser } from "@/lib/server/admin-channel-config";
 import { getAuthenticatedPageAccess } from "@/lib/server/page-access";
@@ -18,16 +18,13 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     const currentUser = access.user;
     const initialSection = resolveAdminSection(currentUser, requestedSection) || "channels";
 
-    const [settings, userSummary] = await Promise.all([getFreshAuthSettings(), getPublicUserSummary()]);
-    const setup = await getAdminSetupSummary({ settings, userSummary });
+    const settings = await getFreshAuthSettings();
+    const setup = await getAdminSetupSummary({ settings });
 
     return (
         <div className="h-full min-h-0 overflow-hidden">
             <AdminDashboard
-                initialUsers={[]}
-                initialUserSummary={userSummary}
                 initialSettings={serializeAdminSettingsForUser(settings, currentUser)}
-                initialPromptCount={0}
                 currentUser={currentUser}
                 initialSection={initialSection}
                 setupSummary={setup}
