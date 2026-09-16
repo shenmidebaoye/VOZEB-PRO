@@ -11,34 +11,25 @@ description: VOZEB PRO 目录职责、服务边界、核心请求链路和部署
 
 ```text
 VOZEB-PRO/
-|- .github/workflows/       质量检查、主应用镜像和文档镜像工作流
+|- .github/workflows/       质量检查工作流
 |- docs/                    Fumadocs 文档站
-|  |- content/docs/         产品、部署、后端与进度文档
+|  |- content/docs/         产品、后端与进度文档
 |  |- public/community/     QQ 群等项目社区素材
 |  |- public/screenshots/   文档使用的脱敏页面截图
 |  `- src/                  文档站页面、搜索和导航
 |- web/                     VOZEB PRO 主应用
 |  |- public/               Logo、图标等静态资源
-|  |- scripts/              standalone 启动与运维脚本
+|  |- scripts/              本机启动与运维脚本
 |  `- src/
 |     |- app/               页面、布局和 API Route Handler
-|     |- components/        跨页面组件与管理后台界面
+|     |- components/        跨页面组件与设置界面
 |     |- hooks/             跨页面交互与生成流程 Hook
 |     |- lib/               领域契约、认证和服务端业务
 |     |- services/api/      浏览器访问本站 API 的客户端
 |     |- stores/            Zustand 全局瞬时状态
 |     `- styles/            跨页面样式
-|- .env.example             环境变量模板，不包含真实密钥
-|- Dockerfile               主应用 standalone 生产镜像
-|- docker-compose.yml       主应用和 PostgreSQL 的标准编排
-|- docker-compose.baota.yml 宝塔 PostgreSQL + host 网络编排
-|- docker-compose.external-db.yml 外部数据库编排
-|- docker-compose.lowmem.yml      低内存部署编排
-|- render.yaml              Render Blueprint
+|- .env.example             本机环境变量模板，不包含真实密钥
 |- AGENTS.md                项目开发、架构、UI 和测试约束
-|- CONTRIBUTING.md          Issue、PR、本地开发和质量检查说明
-|- LICENSE / CLA.md         BUSL-1.1 与贡献者授权协议
-|- SECURITY.md              私密漏洞提交与支持版本说明
 |- VERSION                  当前发行版本
 `- CHANGELOG.md             版本级变更记录
 ```
@@ -80,13 +71,9 @@ VOZEB-PRO/
 | `web/src/lib/server/local-media-registry.ts`        | 媒体用户归属、来源、原名、存储 Provider 和业务关联登记      |
 | `web/src/lib/server/database/schema.ts`             | PostgreSQL 表、索引、约束和初始化结构                       |
 | `web/src/lib/server/database/repositories.ts`       | 数据库 Repository 聚合入口                                  |
-| `web/scripts/start-standalone.mjs`                  | Docker/standalone 生产进程启动和运行目录准备                |
-| `web/scripts/reset-admin-password.mjs`              | 服务端管理员密码重置                                        |
-| `web/scripts/reset-admin-mfa.mjs`                   | 文件/PostgreSQL Provider 的管理员 MFA 恢复与 Session 撤销   |
-| `web/scripts/release-check.mjs`                     | 版本、品牌、文档、Git 跟踪文件和敏感文件发布检查            |
-| `.github/workflows/quality.yml`                     | Web/Docs 依赖安装、类型检查、测试、格式检查和生产构建       |
-| `.github/workflows/docker-image.yml`                | 主应用 amd64/arm64 镜像构建、GHCR 推送和 manifest 合并      |
-| `.github/workflows/docs-docker-image.yml`           | 文档站 amd64/arm64 镜像构建、GHCR 推送和 manifest 合并      |
+| `web/scripts/start-standalone.mjs`                  | standalone 生产进程启动和运行目录准备                       |
+| `web/scripts/release-check.mjs`                     | 本机发布前类型检查、lint、格式与构建                        |
+| `.github/workflows/quality.yml`                     | Web/Docs 依赖安装、类型检查、格式检查和生产构建             |
 
 页面目录中的 `page.tsx` 是页面入口；同目录 `use-*.ts(x)`、`*-records.ts` 或 `components/` 通常承载该页面私有控制逻辑。服务端同名 `*.test.ts(x)` 用于保护任务、计费、媒体、数据库和协议边界。
 

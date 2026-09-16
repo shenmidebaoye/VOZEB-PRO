@@ -18,8 +18,8 @@ const secondaryButtonClass = "inline-flex h-11 items-center justify-center gap-2
 const ghostButtonClass = "inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900";
 
 const steps = [
-    { id: "intro" as const, title: "安装说明", description: "确认部署方式和准备事项" },
-    { id: "database" as const, title: "配置数据库", description: "生成配置并初始化 PostgreSQL" },
+    { id: "intro" as const, title: "安装说明", description: "确认本机启动方式" },
+    { id: "database" as const, title: "可选数据库", description: "文件存储或初始化 PostgreSQL" },
 ];
 
 export function InstallWizard({ install, initialSite }: { install: InstallStatus; initialSite: Pick<SiteSettings, "title" | "logoUrl"> }) {
@@ -110,12 +110,12 @@ function IntroStep({ siteTitle, onNext }: { siteTitle: string; onNext: () => voi
             <StepHeader
                 step="步骤 1 / 2"
                 title="先确认安装流程"
-                description={`${siteTitle} 是本机创作工具：两步完成数据库配置与初始化，不创建账号。生成配置、检查连接并初始化表结构后即可开始创作。`}
+                description={`${siteTitle} 是本机创作工具：默认使用文件存储即可开写；若改用 PostgreSQL，再生成配置并初始化表结构。不创建账号。`}
             />
 
             <div className="mt-7 overflow-hidden rounded-lg border border-slate-200/80 bg-white/75 shadow-sm">
-                <ProcessRow index="01" title="准备 PostgreSQL" text="本机使用 localhost；Docker 内置数据库使用 postgres；宝塔宿主机数据库使用 127.0.0.1；云数据库使用服务商连接地址。" />
-                <ProcessRow index="02" title="写入部署配置并初始化" text="复制环境变量后按部署方式重启服务，刷新检查连接，手动初始化表结构。完成后即可进入创作或设置，无需注册账号。" last />
+                <ProcessRow index="01" title="优先本机文件存储" text="未设置数据库时，pnpm start 默认使用 file Provider，适合单机创作。" />
+                <ProcessRow index="02" title="可选 PostgreSQL" text="需要时在本机或远程 PostgreSQL 写入 web/.env.local，刷新检查连接后手动初始化表结构。" last />
             </div>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -74,7 +74,7 @@ async function loadInstallStatus(provider: "file" | "postgres", encryption = get
                     healthy: true,
                     schemaReady: true,
                     connectionEnv: null,
-                    message: "本地文件存储可用。适合单机体验，商业化部署建议切换到 PostgreSQL。",
+                    message: "本地文件存储可用。适合本机单实例创作。",
                 },
             });
         } catch (error) {
@@ -106,8 +106,8 @@ async function loadInstallStatus(provider: "file" | "postgres", encryption = get
                 healthy: false,
                 schemaReady: false,
                 connectionEnv,
-                message: "缺少 PostgreSQL 连接配置。请在服务器环境变量、.env.local 或 Docker Compose 中填写 DATABASE_URL。",
-                detail: "本机部署通常是 postgres://用户名:密码@localhost:5432/vozeb_pro；Docker Compose 通常是 postgres://用户名:密码@postgres:5432/vozeb_pro。",
+                message: "缺少 PostgreSQL 连接配置。请在 web/.env.local 填写 DATABASE_URL，或改回文件存储。",
+                detail: "本机通常是 postgres://用户名:密码@localhost:5432/vozeb_pro。",
             },
         });
     }

@@ -3,9 +3,6 @@ import { spawnSync } from "node:child_process";
 import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-import { validateComposeContracts, validateDocsComposeContracts } from "./compose-contract.mjs";
-import { validateNginxContract } from "./nginx-contract.mjs";
-import { validateRenderBlueprint } from "./render-contract.mjs";
 import { prepareStandaloneAssets } from "./standalone-assets.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -18,13 +15,6 @@ const protectedPaths = ["web/.data", "web/.next", "web/.next-production", "web/.
 
 try {
     run("git", ["diff", "--check"], repoRoot, "检查空白和补丁格式");
-    console.log("\n> Docker Compose 结构与部署边界检查");
-    validateComposeContracts({ repoRoot });
-    validateDocsComposeContracts({ repoRoot });
-    console.log("\n> Nginx HTTPS、压缩与静态资源缓存检查");
-    validateNginxContract({ repoRoot });
-    console.log("\n> Render Blueprint 结构与运行边界检查");
-    validateRenderBlueprint({ repoRoot });
     const trackedProtected = run("git", ["ls-files", ...protectedPaths], repoRoot, "检查数据库和构建产物未被跟踪", { capture: true });
     if (trackedProtected.trim()) throw new Error(`以下运行时文件不应提交：\n${trackedProtected.trim()}`);
 
@@ -51,7 +41,7 @@ try {
 
 if (!process.exitCode) {
     console.log("\nVOZEB PRO 发布前检查通过。");
-    console.log("移动端发布前还需要人工打开：首页、画布、积分弹窗、图片工作台、视频工作台、管理员后台。");
+    console.log("本机验收请打开：/create、画布、短剧、图片/视频工作台与 /settings。");
 }
 
 function run(command, args, cwd, label, options = {}) {

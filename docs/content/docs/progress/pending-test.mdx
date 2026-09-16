@@ -6,7 +6,7 @@ description: VOZEB PRO 当前版本需要人工或真实环境确认的事项
 # 待测试
 
 - 已去掉 Vitest 单元测试与 Playwright e2e；`package.json`、发布检查和 GitHub 质量门禁不再跑 `pnpm test` / `pnpm run e2e`。本机验收以类型检查和实际创作路径为准，不要再补自动化套件。
-- 本机工作室瘦身：已去掉登录/注册/后台/积分充值/作品广场等商业运营入口；`/` 就绪后进 `/create`，配置在 `/settings`（渠道、Skills、站点、生成并发/默认参数、本地媒体、外部存储、备份、更新）。系统代理不再扣积分；支付/订单/优惠券/邀请/积分钱包服务与仓储已删除。`/settings` 已去掉用户/CDK/公告、SMTP、注册与积分上限，并不再传入 users/summary 无用 props。本机身份只水合 id、用户名、显示名、简介、头像和状态，`/api/admin/settings` 不再按职责权限过滤。仍需在本机确认：安装两步完成后可进创作；刷新后 `/create` 仍有本地用户；`/settings` 能保存渠道与站点；基础设置只剩并发、默认参数和数据维护；`pnpm start` 未设置数据库时使用 file。
+- 本机工作室瘦身：已去掉登录/注册/后台/积分充值/作品广场等商业运营入口；`/` 就绪后进 `/create`，配置在 `/settings`。系统代理不再扣积分。已移除 Docker Compose、Dockerfile、Render Blueprint、GHCR 镜像工作流与安装向导中的容器部署模式；仍需用 `pnpm start` 确认文件模式可进创作，并在可选 PostgreSQL 路径确认 `/install` 初始化。
 - 已删除积分/CDK/公告/邮箱验证码 410 stub、计费倍率类型与系统代理扣费分类；系统代理只按能力识别创建请求。客户端 401 回首页而不再进 `/login`。仍需确认图片/视频/音频/文本创建、查询和取消路径授权不变，以及实例未就绪时的首页/安装引导。
 - AuthSettings 与设置 PATCH 已去掉注册/SMTP/积分倍率/成本保护/套餐权益/`payment_config`；数据维护只保留到期生成任务与过期临时媒体，不再提供会话/邮箱验证码清理。`repository-types` 已只保留本机用到的用户、设置、提示词、生成日志与审计类型；管理员权限矩阵与财务标签已收成 owner 可用校验。仍需在 `/settings` 保存渠道、站点、并发、默认参数和数据维护后刷新确认一致，并确认 PATCH 多余商业字段会被忽略。
 - PostgreSQL schema 与文件认证快照已去掉商业 SaaS 表及用户/设置商业列，本机 owner 只保留 id、账号 ID、用户名、显示名、简介、头像和状态；仍需在 file/Postgres 各初始化一次，确认 `ensureLocalOwner` 可创建本地用户、刷新后 `/create` 仍有身份，且旧库启动会 drop 商业表而不回写积分/会话。

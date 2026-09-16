@@ -398,7 +398,7 @@ VOZEB PRO 调用外部 AI 模型，不要求 GPU。服务器主要承担 Web、P
 
 ### 本机创作工具
 
-本机默认使用文件数据库。`pnpm start` 在未设置 `VOZEB_PRO_DATABASE_PROVIDER` 时自动使用 `file`，不会改动 Docker 生产默认值。
+本机默认使用文件数据库。`pnpm start` 在未设置 `VOZEB_PRO_DATABASE_PROVIDER` 时自动使用 `file`。不提供 Docker / Compose 部署。
 
 ```bash
 cd web && pnpm install
@@ -411,66 +411,9 @@ pnpm start          # 仓库根目录
 
 浏览器打开 `http://127.0.0.1:3000`，进入 `/create` 创作，在 `/settings` 配置渠道、Skills、站点、存储与备份。
 
-### Docker Compose
-
-环境要求：可运行 Docker Compose 的 Linux 服务器、HTTPS 域名，以及按业务需要准备的模型渠道。
-
-```bash
-git clone https://github.com/csyqlz/VOZEB-PRO.git
-cd VOZEB-PRO
-cp .env.example .env
-```
-
-至少修改：
-
-```dotenv
-NEXT_PUBLIC_SITE_URL=https://vozeb-pro.example.com
-POSTGRES_PASSWORD=replace-with-a-strong-password
-VOZEB_PRO_ENCRYPTION_KEY=replace-with-openssl-rand-hex-32
-VOZEB_PRO_MAINTENANCE_TOKEN=replace-with-another-openssl-rand-hex-32
-VOZEB_PRO_WORKER_TOKEN=replace-with-a-distinct-openssl-rand-hex-32
-```
-
-为三个密钥变量分别执行一次下面的命令，并保存每次不同的输出。维护令牌与 Worker 令牌必须不同：
-
-```bash
-openssl rand -hex 32
-```
-
-写入 `.env` 后启动：
-
-```bash
-docker compose pull
-docker compose up -d
-docker compose ps
-```
-
-`VOZEB_PRO_MAINTENANCE_TOKEN` 只授权外部计划维护任务，`VOZEB_PRO_WORKER_TOKEN` 只授权 App 与生成 Worker 的内部任务领取、心跳和回调。Worker 不读取包含数据库、支付或外部维护令牌的完整 `.env`。完整变量说明见[配置说明](docs/content/docs/overview/configuration.mdx)。
-
-打开 `https://你的域名/install`，依次检查数据库、初始化表结构并创建首个管理员。
-
-### 宝塔 PostgreSQL
-
-宝塔已安装 PostgreSQL 时使用：
-
-```bash
-docker compose -f docker-compose.baota.yml up -d
-```
-
-`.env` 中的数据库连接使用宿主机回环地址：
-
-```dotenv
-VOZEB_PRO_DATABASE_PROVIDER=postgres
-DATABASE_URL=postgres://user:password@127.0.0.1:5432/vozeb_pro
-VOZEB_PRO_DATABASE_SSL=0
-VOZEB_PRO_TRUSTED_PROXY_HOPS=1
-```
-
-宝塔 Nginx 反向代理到应用后，应转发 `Host`、`X-Forwarded-Host`、`X-Forwarded-Proto` 和 `X-Forwarded-For`。详细步骤见[生产上线基线](docs/content/docs/overview/production-readiness.mdx)和[Docker 部署](docs/content/docs/overview/docker.mdx)。
-
 ### 源码开发
 
-环境要求：Node.js 22、pnpm 10+、PostgreSQL 16；短剧合成和本地转码还需要 FFmpeg。
+环境要求：Node.js 22、pnpm 10+；短剧合成和本地转码还需要 FFmpeg。
 
 ```bash
 cp .env.example web/.env.local
@@ -479,7 +422,7 @@ pnpm install --frozen-lockfile
 pnpm run dev
 ```
 
-访问 `http://localhost:3000/install`。文档站在 `docs/` 中独立运行，并固定使用 `http://localhost:3001`，不会占用主应用的 `3000` 端口：
+访问 `http://localhost:3000`。文档站在 `docs/` 中独立运行，并固定使用 `http://localhost:3001`，不会占用主应用的 `3000` 端口：
 
 ```bash
 cd docs
@@ -491,12 +434,10 @@ pnpm run dev
 
 ## 首次配置顺序
 
-1. 在 `/install` 完成数据库初始化和首个管理员创建。
-2. 在后台“模型渠道”按五步向导选择协议、配置连接、获取模型、同步逻辑模型并确认启用；无鉴权协议无需 API Key，未知上游可生成自定义协议草稿。
-3. 设置默认逻辑模型，并在 `/create` 统一 Agent 中分别发起文本、图片、视频和音频真实业务请求验证。
-4. 配置套餐、积分规则和可选支付渠道。
-5. 配置 SMTP、注册策略、本地媒体或 S3 兼容对象存储。
-6. 在“初始化配置”检查上线项，再验证真实生成、退款和备份恢复。
+1. 用 `pnpm start` 或 `pnpm run dev` 启动本机服务；文件模式通常无需初始化数据库。
+2. 在 `/settings` 配置模型渠道与默认逻辑模型。
+3. 在 `/create` 统一 Agent 中分别发起文本、图片、视频和音频真实业务请求验证。
+4. 按需配置本地媒体或 S3 兼容对象存储，并做一次备份导出。
 
 ## 目录与文件用途
 
@@ -507,21 +448,14 @@ pnpm run dev
 | `web/src/lib/server/database/`              | PostgreSQL 表结构、参数化 Repository、查询映射和文件 Provider 回退         |
 | `web/src/components/` / `web/src/hooks/`    | 跨页面 UI、创作控件、素材选择、复制下载和会话交互                          |
 | `web/src/services/api/` / `web/src/stores/` | 浏览器访问本站 API 的类型化客户端，以及用户、主题、配置和素材瞬时状态      |
-| `web/scripts/`                              | 低内存生产构建、standalone 启动、生成 Worker、管理员密码重置和发布检查脚本 |
+| `web/scripts/`                              | 本机启动、生成 Worker 与发布检查脚本                                       |
 | `web/public/`                               | 站点 Logo、浏览器图标和模型品牌图标                                        |
-| `docs/content/docs/`                        | 功能、安装、部署、数据库、商业准备、进度和排障文档                         |
-| `docs/public/screenshots/`                  | 用户端、公开页和管理后台的脱敏 WebP 功能截图                               |
-| `.github/workflows/quality.yml`             | Web 与文档的安装、类型检查、测试、格式检查和生产构建                       |
-| `.github/workflows/docker-image.yml`        | 主应用 amd64/arm64 镜像构建与 GHCR 多架构合并                              |
-| `.github/workflows/docs-docker-image.yml`   | 文档站 amd64/arm64 镜像构建与 GHCR 多架构合并                              |
-| `.env.example`                              | 数据库、站点、加密、代理、媒体、模型、支付和部署变量模板                   |
-| `Dockerfile` / `docker-compose*.yml`        | standalone 生产镜像，以及标准、源码、宝塔、外部数据库和低内存部署拓扑      |
+| `docs/content/docs/`                        | 功能、本机安装、数据库、进度和排障文档                                     |
+| `docs/public/screenshots/`                  | 用户端与设置页的脱敏 WebP 功能截图                                         |
+| `.github/workflows/quality.yml`             | Web 与文档的安装、类型检查、格式检查和生产构建                             |
+| `.env.example`                              | 本机数据库、站点、加密、代理、媒体与 Worker 变量模板                       |
 | `VERSION` / `CHANGELOG.md`                  | 当前版本号和版本级变更记录                                                 |
-| `LICENSE` / `COMMERCIAL_LICENSE.md`         | BUSL-1.1 源码公开许可，以及 VOZEB PRO 商业授权说明                         |
-| `COMMERCIAL_LICENSE_AGREEMENT.md`           | 商业授权协议参考模板；只有双方完成信息并签署后才产生合同效力               |
-| `DISCLAIMER.md` / `LEGAL_NOTICE.md`         | 软件与 AI 内容免责声明，以及公开授权和合规警示                             |
-| `CLA.md` / `SECURITY.md`                    | 贡献者授权和漏洞提交规则                                                   |
-| `AGENTS.md` / `CONTRIBUTING.md`             | 项目工程约束，以及开发者提交 Issue、代码和文档的流程                       |
+| `AGENTS.md`                                 | 项目工程约束                                                               |
 
 更完整的目录树、关键源码入口、Service、Route Handler、Repository 和任务 Store 职责见[项目结构与流程](docs/content/docs/overview/project-structure.mdx)。
 
