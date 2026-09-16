@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 export const agentMediaPreviewPopupStyles = {
     popup: {
-        root: { position: "fixed", inset: 0, width: "100vw", height: "100dvh", maxWidth: "none", maxHeight: "none", overflow: "hidden" },
+        root: { position: "fixed", inset: 0, width: "100vw", height: "var(--vozeb-viewport-height, 100dvh)", maxWidth: "none", maxHeight: "none", overflow: "hidden" },
         mask: { position: "fixed", inset: 0 },
         body: { position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" },
     },

@@ -19,7 +19,7 @@
 
         .ant-picker-dropdown .ant-picker-panel-container,
         .ant-picker-dropdown .ant-picker-panel-layout {
-            max-height: calc(100vh - 24px);
+            max-height: calc(var(--vozeb-viewport-height, 100dvh) - 24px);
             max-width: 100% !important;
             overflow: auto;
         }

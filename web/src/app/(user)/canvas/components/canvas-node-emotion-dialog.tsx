@@ -148,7 +148,7 @@ export function CanvasNodeEmotionDialog({ dataUrl, open, onClose, onConfirm }: E
     };
 
     return (
-        <Modal title={null} open={open && Boolean(dataUrl)} onCancel={onClose} footer={null} width={920} centered destroyOnHidden styles={{ body: { maxHeight: "calc(100dvh - 96px)", overflowY: "auto" } }}>
+        <Modal title={null} open={open && Boolean(dataUrl)} onCancel={onClose} footer={null} width={920} centered destroyOnHidden styles={{ body: { maxHeight: "calc(var(--vozeb-viewport-height, 100dvh) - 96px)", overflowY: "auto" } }}>
             <div className="mb-4 border-b pb-3 pr-9 sm:pr-10" data-face-dialog-header>
                 <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5" data-face-dialog-heading>
                     <h2 className="!m-0 flex h-[26px] items-center text-xl font-semibold !leading-none" data-face-dialog-title>

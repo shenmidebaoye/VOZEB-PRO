@@ -33,9 +33,9 @@ export function DesktopShellFrame({ children }: { children: ReactNode }) {
     if (!desktop) return children;
 
     return (
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="desktop-shell-frame flex min-h-0 w-full flex-col overflow-hidden">
             <DesktopTitleBar />
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+            <div className="desktop-shell-content min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
         </div>
     );
 }

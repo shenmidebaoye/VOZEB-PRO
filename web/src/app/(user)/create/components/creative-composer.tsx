@@ -413,7 +413,7 @@ export function CreativeComposer({
                             open={modePickerOpen}
                             onOpenChange={setModePickerOpen}
                             content={
-                                <div className="hide-scrollbar max-h-[calc(100vh-160px)] w-[calc(100vw-56px)] max-w-[300px] overflow-y-auto py-1 sm:w-72 sm:max-w-none">
+                                <div className="hide-scrollbar max-h-[calc(var(--vozeb-viewport-height,100dvh)-160px)] w-[calc(100vw-56px)] max-w-[300px] overflow-y-auto py-1 sm:w-72 sm:max-w-none">
                                     <p className="px-2 pb-2 text-sm font-semibold text-[#20242a] dark:text-[#f3f5f7]">创作类型</p>
                                     <div className="space-y-1">
                                         {creativeModeOptions.map((option) => {

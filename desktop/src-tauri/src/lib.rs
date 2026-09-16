@@ -142,7 +142,15 @@ const DESKTOP_BOOTSTRAP_JS: &str = r##"(function () {
   }
   var style = document.createElement("style");
   style.id = "vozeb-desktop-chrome-style";
-  style.textContent = "html.vozeb-desktop-shell body:has(#vozeb-desktop-chrome){padding-top:36px;box-sizing:border-box;}";
+  style.textContent = [
+    "html.vozeb-desktop-shell{--vozeb-desktop-titlebar-height:36px;--vozeb-viewport-height:calc(100dvh - 36px);}",
+    "html.vozeb-desktop-shell body:has(#vozeb-desktop-chrome){padding-top:36px;box-sizing:border-box;}",
+    "html.vozeb-desktop-shell body:has(#vozeb-desktop-chrome) .h-dvh,",
+    "html.vozeb-desktop-shell body:has(#vozeb-desktop-chrome) .min-h-dvh,",
+    "html.vozeb-desktop-shell body:has(#vozeb-desktop-chrome) .h-screen,",
+    "html.vozeb-desktop-shell body:has(#vozeb-desktop-chrome) .min-h-screen{height:calc(100dvh - 36px)!important;max-height:calc(100dvh - 36px)!important;min-height:0!important;}",
+    "html.vozeb-desktop-shell body:has(#vozeb-desktop-chrome) .app-scroll-page{height:calc(100dvh - 36px);max-height:calc(100dvh - 36px);}"
+  ].join("");
   document.documentElement.appendChild(style);
 })();"##;
 

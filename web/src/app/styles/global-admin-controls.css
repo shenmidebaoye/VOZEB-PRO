@@ -790,7 +790,7 @@
         }
 
         .landing-auth-modal .ant-modal-content {
-            max-height: calc(100dvh - 28px);
+            max-height: calc(var(--vozeb-viewport-height, 100dvh) - 28px);
             overflow-y: auto;
         }
 

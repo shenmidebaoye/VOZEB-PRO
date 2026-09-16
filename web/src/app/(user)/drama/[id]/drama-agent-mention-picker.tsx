@@ -44,7 +44,7 @@ export function DramaAgentMentionPicker({ items, selectedIds, onSelect }: { item
                     );
                 })}
             </div>
-            <div className="hide-scrollbar grid max-h-[min(14rem,calc(100dvh-12rem))] grid-cols-2 gap-1 overflow-y-auto overscroll-contain p-0.5" data-drama-agent-mention-list={visibleKind}>
+            <div className="hide-scrollbar grid max-h-[min(14rem,calc(var(--vozeb-viewport-height,100dvh)-12rem))] grid-cols-2 gap-1 overflow-y-auto overscroll-contain p-0.5" data-drama-agent-mention-list={visibleKind}>
                 {visibleItems.map((item) => {
                     const selected = selectedIds.has(item.id);
                     return (

@@ -146,7 +146,7 @@
     }
 
     .canvas-image-settings-popover .ant-popover-inner-content {
-        max-height: calc(100vh - 96px);
+        max-height: calc(var(--vozeb-viewport-height, 100dvh) - 96px);
         overflow-y: auto;
     }
 

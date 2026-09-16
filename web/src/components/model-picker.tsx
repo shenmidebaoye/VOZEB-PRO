@@ -68,7 +68,7 @@ export function ModelPicker({ config, value, onChange, capability, className, fu
             </SelectTrigger>
             <SelectContent
                 data-canvas-no-zoom
-                className="z-[1200] max-h-[min(18rem,calc(100vh-96px))] w-[min(20rem,var(--radix-select-content-available-width))] min-w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-32px)] rounded-xl border border-border/70 bg-popover p-1 shadow-xl"
+                className="z-[1200] max-h-[min(18rem,calc(var(--vozeb-viewport-height,100dvh)-96px))] w-[min(20rem,var(--radix-select-content-available-width))] min-w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-32px)] rounded-xl border border-border/70 bg-popover p-1 shadow-xl"
                 position="popper"
                 align="start"
                 side="bottom"

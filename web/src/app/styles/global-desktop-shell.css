@@ -1,0 +1,60 @@
+/* Desktop custom titlebar: remap viewport height so layouts fit below the chrome. */
+html {
+    --vozeb-desktop-titlebar-height: 0px;
+    --vozeb-viewport-height: 100dvh;
+}
+
+html.vozeb-desktop-shell {
+    --vozeb-desktop-titlebar-height: 36px;
+    --vozeb-viewport-height: calc(100dvh - var(--vozeb-desktop-titlebar-height));
+}
+
+html.vozeb-desktop-shell body {
+    height: 100%;
+    overflow: hidden;
+}
+
+html.vozeb-desktop-shell .desktop-shell-frame {
+    height: 100dvh;
+    max-height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+}
+
+html.vozeb-desktop-shell .desktop-shell-content {
+    min-height: 0;
+    min-width: 0;
+    height: var(--vozeb-viewport-height);
+    max-height: var(--vozeb-viewport-height);
+    overflow: hidden;
+}
+
+/* Children that sized to the full viewport must fill the shell content instead. */
+html.vozeb-desktop-shell .desktop-shell-content .h-dvh,
+html.vozeb-desktop-shell .desktop-shell-content .min-h-dvh,
+html.vozeb-desktop-shell .desktop-shell-content .h-screen,
+html.vozeb-desktop-shell .desktop-shell-content .min-h-screen,
+html.vozeb-desktop-shell .desktop-shell-content .workspace-shell {
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+}
+
+html.vozeb-desktop-shell .desktop-shell-content .app-scroll-page {
+    height: 100%;
+    max-height: 100%;
+}
+
+/* Fixed / absolute fullscreen surfaces under the titlebar. */
+html.vozeb-desktop-shell .desktop-shell-content .canvas-agent-panel-frame,
+html.vozeb-desktop-shell .desktop-shell-content .canvas-agent-panel {
+    top: var(--vozeb-desktop-titlebar-height);
+    height: var(--vozeb-viewport-height);
+    max-height: var(--vozeb-viewport-height);
+}
+
+html.vozeb-desktop-shell .desktop-shell-content .admin-section-nav {
+    top: var(--vozeb-desktop-titlebar-height);
+    height: var(--vozeb-viewport-height);
+    max-height: var(--vozeb-viewport-height);
+}

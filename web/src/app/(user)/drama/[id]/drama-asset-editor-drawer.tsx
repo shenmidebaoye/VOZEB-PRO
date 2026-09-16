@@ -368,7 +368,7 @@ export function DramaAssetEditorDrawer({ project, kind, assetId, open, onClose }
                 mask={{ closable: false }}
                 onCancel={onClose}
                 footer={actions}
-                styles={{ container: { maxWidth: "calc(100vw - 24px)" }, body: { maxHeight: "calc(100vh - 150px)", overflowY: "auto", padding: 0 } }}
+                styles={{ container: { maxWidth: "calc(100vw - 24px)" }, body: { maxHeight: "calc(var(--vozeb-viewport-height, 100dvh) - 150px)", overflowY: "auto", padding: 0 } }}
             >
                 {editorContent}
             </Modal>

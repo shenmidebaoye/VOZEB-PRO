@@ -58,7 +58,7 @@ export function CanvasAgentMentionPicker({ assets, selectedNodeIds, theme, onSel
                 </div>
             ) : null}
             <div className="relative min-h-0 overflow-hidden">
-                <div ref={gridRef} className="hide-scrollbar grid max-h-[min(12rem,calc(100dvh-10rem))] grid-cols-4 gap-1 overflow-y-auto overscroll-contain p-0.5" data-testid={`canvas-agent-mention-${visibleType}-grid`}>
+                <div ref={gridRef} className="hide-scrollbar grid max-h-[min(12rem,calc(var(--vozeb-viewport-height,100dvh)-10rem))] grid-cols-4 gap-1 overflow-y-auto overscroll-contain p-0.5" data-testid={`canvas-agent-mention-${visibleType}-grid`}>
                     {visibleAssets.map((asset) => (
                         <button
                             key={asset.id}

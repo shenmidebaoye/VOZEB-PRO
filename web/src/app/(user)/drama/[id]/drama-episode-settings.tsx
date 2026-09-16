@@ -18,7 +18,7 @@ export function DramaEpisodeSettings({ project, episode, embedded = false }: { p
     const characterCount = new Set(episode.shots.flatMap((shot) => shot.characterIds)).size;
     const duration = episode.shots.reduce((total, shot) => total + (Number.isFinite(shot.duration) ? shot.duration : 0), 0);
     return (
-        <aside className={`hide-scrollbar min-h-0 min-w-0 overflow-y-auto bg-card ${embedded ? "max-h-[min(620px,calc(100vh-150px))] p-1" : "border-l border-border p-3"}`} data-drama-episode-settings>
+        <aside className={`hide-scrollbar min-h-0 min-w-0 overflow-y-auto bg-card ${embedded ? "max-h-[min(620px,calc(var(--vozeb-viewport-height,100dvh)-150px))] p-1" : "border-l border-border p-3"}`} data-drama-episode-settings>
             {!embedded ? (
                 <>
                     <h3 className="text-sm font-semibold">本集设置</h3>

@@ -53,7 +53,7 @@ export function CreativeAssetMentionPicker({ assets, selectedAssetIds, onSelect 
                 </div>
             ) : null}
             <div className="relative min-h-0 overflow-hidden">
-                <div ref={gridRef} className="hide-scrollbar grid max-h-[min(16rem,calc(100dvh-10rem))] grid-cols-4 gap-1.5 overflow-y-auto overscroll-contain p-0.5" data-testid={`creative-asset-mention-${visibleType}-grid`}>
+                <div ref={gridRef} className="hide-scrollbar grid max-h-[min(16rem,calc(var(--vozeb-viewport-height,100dvh)-10rem))] grid-cols-4 gap-1.5 overflow-y-auto overscroll-contain p-0.5" data-testid={`creative-asset-mention-${visibleType}-grid`}>
                     {visibleAssets.map((asset) => (
                         <button
                             key={asset.id}

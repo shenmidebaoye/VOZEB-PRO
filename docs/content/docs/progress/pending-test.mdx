@@ -7,7 +7,7 @@ description: VOZEB PRO 当前版本需要人工或真实环境确认的事项
 
 - 本机冗余清理：已删除无 UI 的 `/api/admin/generation-*` 运维路由、`/api/auth/profile|avatar`、wallet/points stub、多用户列表与账号 ID 展示；条款/隐私/帮助改为本机工作室表述。仍需在 `/settings`、本地媒体与外部存储页确认无报错，并确认创作主路径不受影响。
 - Tauri 桌面壳：优先验收 `pnpm desktop:dev`（standalone）。首次应自动生产构建，之后冷启动进 `/create` 应明显快于旧 `next dev`；点路由不应再出现长时间现编。改代码后用 `pnpm desktop:rebuild`。`desktop:dev:hmr` 仅作对照。正式安装包、捆绑 Node/Sharp 尚未完成。
-- 桌面窗口顶部标题栏已改为完全自定义（关闭系统装饰）：应用内顶栏跟随浅/深主题色，支持拖动与最小化/最大化/关闭；窗口操作改为 Tauri IPC（`mousedown` 同步拖拽），不再走异步协议。仍需重启 `pnpm desktop:dev` 验收；应用内 React 顶栏需 `pnpm desktop:rebuild` 后才更新。
+- 桌面窗口顶部标题栏已改为完全自定义（关闭系统装饰）：应用内顶栏跟随浅/深主题色，支持拖动与最小化/最大化/关闭；窗口操作改为 Tauri IPC（`mousedown` 同步拖拽），不再走异步协议。布局已按 `--vozeb-viewport-height`（扣除顶栏）自适应缩放后的窗口高度。仍需重启 `pnpm desktop:dev`；应用内 React 顶栏与布局需 `pnpm desktop:rebuild` 后验收。
 - 已去掉 Vitest 单元测试与 Playwright e2e；`package.json`、发布检查和 GitHub 质量门禁不再跑 `pnpm test` / `pnpm run e2e`。本机验收以类型检查和实际创作路径为准，不要再补自动化套件。
 - 本机工作室瘦身：已去掉登录/注册/后台/积分充值/作品广场等商业运营入口；`/` 就绪后进 `/create`，配置在 `/settings`。系统代理不再扣积分。已移除 Docker Compose、Dockerfile、Render Blueprint、GHCR 镜像工作流与安装向导中的容器部署模式；仍需用 `pnpm start` 确认文件模式可进创作，并在可选 PostgreSQL 路径确认 `/install` 初始化。
 - 已删除积分/CDK/公告/邮箱验证码 410 stub、计费倍率类型与系统代理扣费分类；系统代理只按能力识别创建请求。客户端 401 回首页而不再进 `/login`。仍需确认图片/视频/音频/文本创建、查询和取消路径授权不变，以及实例未就绪时的首页/安装引导。

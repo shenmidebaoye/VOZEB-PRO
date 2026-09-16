@@ -57,7 +57,7 @@ export function CreativeGenerationControls({
                 open={modelPickerOpen}
                 onOpenChange={setModelPickerOpen}
                 content={
-                    <div className="hide-scrollbar max-h-[calc(100vh-96px)] w-[calc(100vw-40px)] max-w-[360px] overflow-y-auto py-1">
+                    <div className="hide-scrollbar max-h-[calc(var(--vozeb-viewport-height,100dvh)-96px)] w-[calc(100vw-40px)] max-w-[360px] overflow-y-auto py-1">
                         <div className="flex items-center justify-between gap-3 px-1 pb-3">
                             <div className="min-w-0">
                                 <p className="text-sm font-semibold text-[#20242a] dark:text-[#f3f5f7]">选择模型</p>

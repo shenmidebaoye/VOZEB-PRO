@@ -45,7 +45,7 @@ export function DramaAgentHistory({
                 <span className="text-xs font-medium text-foreground">历史对话</span>
                 <span className="text-[11px] tabular-nums text-muted-foreground">{items.length} 条</span>
             </div>
-            <div className="hide-scrollbar max-h-[min(18rem,calc(100dvh-8rem))] overflow-y-auto overscroll-contain">
+            <div className="hide-scrollbar max-h-[min(18rem,calc(var(--vozeb-viewport-height,100dvh)-8rem))] overflow-y-auto overscroll-contain">
                 {loading ? <div className="px-3 py-8 text-center text-xs text-muted-foreground">正在读取...</div> : null}
                 {!loading && !items.length ? <div className="px-3 py-8 text-center text-xs text-muted-foreground">暂无历史对话</div> : null}
                 <div className="grid gap-0.5">
